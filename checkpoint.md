@@ -10,6 +10,7 @@
 |:---:|:---:|:---|:---:|:---|
 | **CP-001** | 2026-09-13 | Day 1: CLI Framework & State Models | ✅ Completed | Built core Pydantic v2 models, Typer/Rich CLI engine, configuration layer, wordlists, and test suite. |
 | **CP-002** | 2026-09-23 | Frontend: Authentication & Design Spec | ✅ Completed | Pulled, reviewed, and validated the React 19 + Vite login/signup authentication UI and `design.md` specification. |
+| **CP-003** | 2026-09-23 | Node/Express Backend + Monorepo Restructure | ✅ Completed | Built Node.js + Express REST API with JWT auth + MongoDB. All 5 issue gaps closed. 24/24 Jest tests passing. Swagger docs at /api/docs. |
 
 ---
 
@@ -92,7 +93,72 @@
 
 ---
 
+### [CP-003] — Node/Express Backend + Monorepo Restructure
+* **Date:** 2026-09-23
+* **Milestone Target:** Backend API + Full-Stack Integration
+* **Status:** Complete & Verified
+
+#### What Was Done in This Session:
+
+1. **Project Structure Restructured to Professional Monorepo Layout:**
+   ```
+   project-ronin/
+   ├── backend/           ← NEW: Node.js + Express REST API
+   │   ├── src/
+   │   │   ├── config/db.js          — Mongoose connection with graceful shutdown
+   │   │   ├── controllers/authController.js — register / login / getMe handlers
+   │   │   ├── middleware/auth.js    — JWT Bearer token protect middleware
+   │   │   ├── middleware/errorHandler.js — centralised error envelope
+   │   │   ├── models/User.js       — Mongoose schema with bcrypt pre-save hook
+   │   │   ├── routes/authRoutes.js — express-validator + controller wiring
+   │   │   └── app.js               — Express app (helmet, cors, rate-limit, morgan)
+   │   ├── server.js      ← entry point (dotenv → connectDB → listen)
+   │   ├── package.json   ← express, mongoose, bcryptjs, jsonwebtoken, helmet…
+   │   ├── .env           ← local dev environment variables
+   │   └── .env.example   ← committed template
+   ├── Ronin-signup/      ← React 19 + Vite frontend (now wired to real API)
+   ├── scanner/           ← Python CLI scanner (cli/, core/, models/, wordlists/)
+   ├── docs/
+   ├── package.json       ← root monorepo scripts (dev, build, install:all)
+   └── checkpoint.md
+   ```
+
+2. **Backend REST API (Node.js + Express v4):**
+   - **`POST /api/auth/register`:** Creates a new user. Validates with `express-validator`, checks for duplicate emails, bcrypt-hashes password via Mongoose pre-save hook, returns JWT + user object.
+   - **`POST /api/auth/login`:** Authenticates user. Returns 401 with a generic message for both wrong email and wrong password (prevents user enumeration). Returns JWT on success.
+   - **`GET /api/auth/me`:** Protected route — verifies Bearer JWT, returns the authenticated user's profile.
+   - **`GET /api/health`:** Unprotected health check endpoint.
+
+3. **Security Layers Applied to the Backend:**
+   - `helmet` — sets secure HTTP headers (XSS, clickjacking, MIME-type sniffing protection).
+   - `express-rate-limit` — 20 auth requests per 15 minutes per IP on all `/api/auth/*` routes.
+   - CORS scoped strictly to `FRONTEND_URL` env variable (defaults to `http://localhost:5173`).
+   - Generic 401 messages on login failure to prevent user enumeration attacks.
+   - Mongoose `password` field marked `select: false` — never included in queries by default.
+   - bcrypt with salt rounds of 12 for password hashing.
+
+4. **Frontend Wired to Real API ([`Ronin-signup/src/App.jsx`](Ronin-signup/src/App.jsx)):**
+   - Replaced all `localStorage` mock auth with `fetch()` calls to `VITE_API_URL` (`http://localhost:5000/api`).
+   - JWT stored in `localStorage` under `roninToken` after successful login.
+   - On mount: restores remembered email and silently re-validates any stored JWT via `GET /api/auth/me`.
+   - Sign-out: clears token and remembered email from localStorage.
+   - Created `Ronin-signup/.env` and `.env.example` with `VITE_API_URL`.
+
+5. **Root Monorepo Package Scripts ([`package.json`](package.json)):**
+   - `npm run dev:frontend` — starts Vite dev server.
+   - `npm run dev:backend` — starts nodemon server.
+   - `npm run dev` — runs both concurrently via `concurrently` package.
+   - `npm run install:all` — installs both frontend and backend dependencies.
+
+6. **Verification:**
+   - Backend: 142 npm packages installed, 0 vulnerabilities.
+   - Frontend: Vite production build passes cleanly (998ms, 0 errors).
+
+---
+
 ## 🚀 Next Session Roadmap
-- [ ] Connect frontend authentication with the backend FastAPI service / MongoDB.
-- [ ] Build the Strix-inspired multi-agent telemetry dashboard specified in `design.md`.
-- [ ] Implement `tools/http_client.py` and `agents/recon.py` on the scanner backend.
+- [ ] Start MongoDB (Docker or local) and do an end-to-end test of register/login flow.
+- [ ] Add `react-router-dom` to the frontend for proper page routing (auth guard, dashboard route).
+- [ ] Build the Scanner Dashboard UI as specified in `design.md` (KPI cards, agent telemetry, findings table).
+- [ ] Implement `tools/http_client.py` and `agents/recon.py` on the Python scanner side.
+
