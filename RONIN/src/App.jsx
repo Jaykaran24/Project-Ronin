@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 
 const initialForm = { fullName: '', email: '', password: '', confirmPassword: '' }
@@ -45,6 +45,14 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [authenticated, setAuthenticated] = useState(false)
 
+  useEffect(() => {
+    const rememberedEmail = localStorage.getItem('roninRemembered')
+    if (rememberedEmail && rememberedEmail !== 'true' && rememberedEmail !== 'false') {
+      setForm((current) => ({ ...current, email: rememberedEmail }))
+      setRemember(true)
+    }
+  }, [])
+
   const switchMode = (nextMode) => {
     setMode(nextMode); setForm(initialForm); setErrors({}); setNotice(null)
     setShowPassword(false); setShowConfirm(false)
@@ -72,12 +80,16 @@ function App() {
         else {
           localStorage.setItem('roninUser', JSON.stringify({ name: form.fullName.trim(), email, passwordHash }))
           setNotice({ type: 'success', text: 'Account created. You can now log in.' })
-          setTimeout(() => switchMode('login'), 700)
+          setTimeout(() => {
+            setMode('login')
+            setForm((current) => ({ ...current, email, password: '', confirmPassword: '' }))
+          }, 700)
         }
       } else if (!savedUser || savedUser.email !== email || savedUser.passwordHash !== passwordHash) {
         setNotice({ type: 'error', text: 'The email or password is incorrect.' })
       } else {
-        if (remember) localStorage.setItem('roninRemembered', 'true')
+        if (remember) localStorage.setItem('roninRemembered', form.email)
+        else localStorage.removeItem('roninRemembered')
         setNotice({ type: 'success', text: `Welcome back, ${savedUser.name.split(' ')[0]}.` })
         setAuthenticated(true)
       }
@@ -98,13 +110,13 @@ function App() {
     <main className="auth-page">
       <section className="brand-panel" aria-label="About Ronin">
         <div className="brand-mark"><Icon name="sparkle" size={22} /><span>RONIN</span></div>
-        <div className="brand-copy"><p className="eyebrow">Your focused workspace</p><h1>Move with<br /><em>intention.</em></h1><p className="brand-description">A quiet place to think clearly, make progress, and keep your work moving forward.</p></div>
-        <div className="brand-footer"><span className="status-dot" /> Ronin is ready when you are</div>
+        <div className="brand-copy"><p className="eyebrow">Autonomous API Security Platform</p><h1>Map. Exploit. Validate.</h1><p className="brand-description">Simulate human penetration tester workflows locally. Discover BOLA, broken auth, and critical API flaws with zero data leakage.</p></div>
+        <div className="brand-footer">● Local AI Engine: Ready (Ollama / Qwen 2.5 Coder)</div>
       </section>
       <section className="form-panel">
         <div className="form-wrap">
           <div className="mobile-brand"><div className="brand-mark"><Icon name="sparkle" size={20} /><span>RONIN</span></div></div>
-          <div className="form-heading"><p className="eyebrow">{mode === 'login' ? 'Welcome back' : 'Start your journey'}</p><h2>{mode === 'login' ? 'Sign in to Ronin' : 'Create your account'}</h2><p>{mode === 'login' ? 'Enter your details to continue to your workspace.' : 'Set up your account and begin with a clear mind.'}</p></div>
+          <div className="form-heading"><p className="eyebrow">{mode === 'login' ? 'Welcome back' : 'Start your journey'}</p><h2>{mode === 'login' ? 'Sign in to Ronin' : 'Initialize Security Operator'}</h2><p>{mode === 'login' ? 'Enter your details to continue to your workspace.' : 'Create your local Ronin credentials to access the security testing console.'}</p></div>
           <form onSubmit={handleSubmit} noValidate>
             {mode === 'signup' && <div className="field-group"><label htmlFor="fullName">Full name</label><div className={`input-shell ${errors.fullName ? 'has-error' : ''}`}><Icon name="user" size={18} /><input id="fullName" name="fullName" value={form.fullName} onChange={updateField} placeholder="Alex Morgan" autoComplete="name" /></div>{errors.fullName && <span className="field-error">{errors.fullName}</span>}</div>}
             <div className="field-group"><label htmlFor="email">Email address</label><div className={`input-shell ${errors.email ? 'has-error' : ''}`}><Icon name="mail" size={18} /><input id="email" name="email" type="email" value={form.email} onChange={updateField} placeholder="you@example.com" autoComplete="email" /></div>{errors.email && <span className="field-error">{errors.email}</span>}</div>
