@@ -1,0 +1,2 @@
+[console_scripts]
+ronin = cli.main:app

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Ronin Security Report — ronin-20260913-091651</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --card-bg: #161b22;
+            --border-color: #30363d;
+            --text-main: #c9d1d9;
+            --text-dim: #8b949e;
+            --critical: #f85149;
+            --high: #da3633;
+            --medium: #d29922;
+            --low: #388bfd;
+            --info: #58a6ff;
+            --success: #238636;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 30px;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        .header {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .header h1 {
+            margin-top: 0;
+            color: #58a6ff;
+        }
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .meta-item {
+            background: #0d1117;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+        .meta-label {
+            font-size: 12px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+        .meta-val {
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 4px;
+            word-break: break-all;
+        }
+        .summary-bar {
+            display: flex;
+            gap: 12px;
+            margin: 24px 0;
+        }
+        .summary-box {
+            flex: 1;
+            padding: 16px;
+            border-radius: 6px;
+            text-align: center;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+        }
+        .summary-box.critical { border-top: 4px solid var(--critical); }
+        .summary-box.high { border-top: 4px solid var(--high); }
+        .summary-box.medium { border-top: 4px solid var(--medium); }
+        .summary-box.low { border-top: 4px solid var(--low); }
+        .summary-box.info { border-top: 4px solid var(--info); }
+        .summary-count {
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .finding-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .finding-card.critical { border-left: 6px solid var(--critical); }
+        .finding-card.high { border-left: 6px solid var(--high); }
+        .finding-card.medium { border-left: 6px solid var(--medium); }
+        .finding-card.low { border-left: 6px solid var(--low); }
+        .finding-card.info { border-left: 6px solid var(--info); }
+        .finding-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .badge.critical { background: var(--critical); color: white; }
+        .badge.high { background: var(--high); color: white; }
+        .badge.medium { background: var(--medium); color: black; }
+        .badge.low { background: var(--low); color: white; }
+        .badge.info { background: var(--info); color: black; }
+        .finding-id { color: var(--text-dim); font-weight: 600; font-size: 14px; }
+        .cvss-score { font-weight: 700; color: #f0883e; }
+        .finding-title { margin: 0; font-size: 18px; flex: 1; }
+        .finding-body { padding: 20px; }
+        .poc-box pre {
+            background: #0d1117;
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+            color: #79c0ff;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            background: var(--card-bg);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        a { color: #58a6ff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ Project Ronin — Security Assessment Report</h1>
+            <div class="meta-grid">
+                <div class="meta-item"><div class="meta-label">Scan ID</div><div class="meta-val">ronin-20260913-091651</div></div>
+                <div class="meta-item"><div class="meta-label">Target URL</div><div class="meta-val">https://api.example.com</div></div>
+                <div class="meta-item"><div class="meta-label">Started</div><div class="meta-val">2026-09-13T09:16:51.611133+00:00</div></div>
+                <div class="meta-item"><div class="meta-label">Duration</div><div class="meta-val">2.2s</div></div>
+                <div class="meta-item"><div class="meta-label">Endpoints Tested</div><div class="meta-val">4</div></div>
+            </div>
+        </div>
+
+        <div class="summary-bar">
+            <div class="summary-box critical"><div class="summary-count" style="color: var(--critical)">0</div><div>CRITICAL</div></div>
+            <div class="summary-box high"><div class="summary-count" style="color: var(--high)">0</div><div>HIGH</div></div>
+            <div class="summary-box medium"><div class="summary-count" style="color: var(--medium)">0</div><div>MEDIUM</div></div>
+            <div class="summary-box low"><div class="summary-count" style="color: var(--low)">0</div><div>LOW</div></div>
+            <div class="summary-box info"><div class="summary-count" style="color: var(--info)">0</div><div>INFO</div></div>
+        </div>
+
+        <h2>Detailed Findings</h2>
+        
+        <div class="empty-state">
+            <h3>No Confirmed Vulnerabilities</h3>
+            <p>All tested endpoints conformed to standard security controls or produced no reproducible authorization anomalies.</p>
+        </div>
+        
+    </div>
+</body>
+</html>

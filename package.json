@@ -1,0 +1,10 @@
+{
+  "name": "project-ronin",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix ./RONIN run dev",
+    "build": "npm --prefix ./RONIN run build",
+    "lint": "npm --prefix ./RONIN run lint",
+    "preview": "npm --prefix ./RONIN run preview"
+  }
+}
