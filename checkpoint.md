@@ -11,6 +11,7 @@
 | **CP-001** | 2026-09-13 | Day 1: CLI Framework & State Models | ✅ Completed | Built core Pydantic v2 models, Typer/Rich CLI engine, configuration layer, wordlists, and test suite. |
 | **CP-002** | 2026-09-23 | Frontend: Authentication & Design Spec | ✅ Completed | Pulled, reviewed, and validated the React 19 + Vite login/signup authentication UI and `design.md` specification. |
 | **CP-003** | 2026-09-23 | Node/Express Backend + Monorepo Restructure | ✅ Completed | Built Node.js + Express REST API with JWT auth + MongoDB. All 5 issue gaps closed. 24/24 Jest tests passing. Swagger docs at /api/docs. |
+| **CP-004** | 2026-09-23 | Merge Conflict Resolution & Dashboard Integration | ✅ Completed | Fixed merge conflict markers in App.jsx, installed react-router-dom, wired full 8-page security dashboard to backend API auth. |
 
 ---
 
@@ -156,9 +157,34 @@
 
 ---
 
+### [CP-004] — Merge Conflict Resolution & Dashboard Integration
+* **Date:** 2026-09-23
+* **Milestone Target:** Post-Merge Stability & Dashboard Architecture
+* **Status:** Complete & Verified
+
+#### Crash Root Causes Identified:
+1. **Unresolved Merge Conflict Markers in `Ronin-signup/src/App.jsx`:** Commit `eda3d72` ("Solved one conflict") accidentally left raw git conflict markers (`<<<<<<< HEAD`, `=======`, `>>>>>>> 7af2c6d...`) in `src/App.jsx`, preventing Vite / Rolldown from parsing the file (`Encountered diff marker`).
+2. **Missing `react-router-dom` in `node_modules`:** Commit `7af2c6d` added `react-router-dom: ^7.18.4` to `Ronin-signup/package.json` for the new dashboard routes, but `npm install` had not been executed inside `Ronin-signup/`.
+3. **Frontend Path Discrepancy in Root `package.json`:** Root script was pointing to `./frontend` instead of `./Ronin-signup`.
+4. **Auth Decoupling Reversion:** The new dashboard branch extracted authentication into `Ronin-signup/src/pages/Auth.jsx`, but reverted it to a mock `localStorage`/`setTimeout` implementation instead of communicating with the Node.js + Express backend.
+
+#### Fixes Implemented:
+1. **Cleaned & Restructured [`Ronin-signup/src/App.jsx`](Ronin-signup/src/App.jsx):**
+   - Removed all conflict markers.
+   - Restored `DashboardShell` housing the full React Router routes (`/dashboard`, `/dashboard/scans`, `/dashboard/findings`, `/dashboard/endpoints`, `/dashboard/agents`, `/dashboard/sandbox`, `/dashboard/reports`, `/dashboard/settings`).
+   - Wired live session restore via `GET /api/auth/me` with Bearer token authentication.
+2. **Wired [`Ronin-signup/src/pages/Auth.jsx`](Ronin-signup/src/pages/Auth.jsx) to Backend:**
+   - Swapped mock timeouts with real `fetch()` calls to `VITE_API_URL` (`POST /api/auth/signup` and `POST /api/auth/login`).
+   - Implemented token storage and error handling.
+3. **Installed Frontend Dependencies:**
+   - Executed `npm install` inside `Ronin-signup/` to fetch `react-router-dom`.
+4. **Verified End-to-End:**
+   - Frontend: `npm run build` completed cleanly in 473ms with 0 errors.
+   - Backend: 24/24 Jest + Supertest tests passed cleanly.
+
+---
+
 ## 🚀 Next Session Roadmap
-- [ ] Start MongoDB (Docker or local) and do an end-to-end test of register/login flow.
-- [ ] Add `react-router-dom` to the frontend for proper page routing (auth guard, dashboard route).
-- [ ] Build the Scanner Dashboard UI as specified in `design.md` (KPI cards, agent telemetry, findings table).
-- [ ] Implement `tools/http_client.py` and `agents/recon.py` on the Python scanner side.
+- [ ] Connect live telemetry data from scanner to the dashboard `/dashboard/agents` and `/dashboard/scans` routes.
+- [ ] Implement `tools/http_client.py` and `agents/recon.py` on the Python scanner engine.
 

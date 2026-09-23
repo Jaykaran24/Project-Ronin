@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import '../App.css'
 import { LogoMark } from '../components/Logo.jsx'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 const initialForm = { fullName: '', email: '', password: '', confirmPassword: '' }
 
 function Icon({ name, size = 20 }) {
@@ -29,12 +30,6 @@ function validate(form, mode) {
   return errors
 }
 
-async function hashPassword(password) {
-  const encoded = new TextEncoder().encode(password)
-  const digest = await crypto.subtle.digest('SHA-256', encoded)
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
-}
-
 export default function AuthPage({ onAuth }) {
   const [mode, setMode] = useState('login')
   const [form, setForm] = useState(initialForm)
@@ -54,8 +49,12 @@ export default function AuthPage({ onAuth }) {
   }, [])
 
   const switchMode = (nextMode) => {
-    setMode(nextMode); setForm(initialForm); setErrors({}); setNotice(null)
-    setShowPassword(false); setShowConfirm(false)
+    setMode(nextMode)
+    setForm(initialForm)
+    setErrors({})
+    setNotice(null)
+    setShowPassword(false)
+    setShowConfirm(false)
   }
 
   const updateField = (event) => {
@@ -65,35 +64,55 @@ export default function AuthPage({ onAuth }) {
     if (notice) setNotice(null)
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     const nextErrors = validate(form, mode)
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length) return
+
     setLoading(true)
-    window.setTimeout(async () => {
-      const savedUser = JSON.parse(localStorage.getItem('roninUser') || 'null')
-      const email = form.email.trim().toLowerCase()
-      const passwordHash = await hashPassword(form.password)
+    setNotice(null)
+
+    try {
+      const endpoint = mode === 'signup' ? '/auth/signup' : '/auth/login'
+      const payload = mode === 'signup'
+        ? { fullName: form.fullName.trim(), email: form.email.trim(), password: form.password }
+        : { email: form.email.trim(), password: form.password }
+
+      const res = await fetch(`${API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setNotice({ type: 'error', text: data.message || 'Something went wrong.' })
+        setLoading(false)
+        return
+      }
+
       if (mode === 'signup') {
-        if (savedUser?.email === email) setNotice({ type: 'error', text: 'An account with this email already exists.' })
-        else {
-          localStorage.setItem('roninUser', JSON.stringify({ name: form.fullName.trim(), email, passwordHash }))
-          setNotice({ type: 'success', text: 'Account created. You can now log in.' })
-          setTimeout(() => {
-            setMode('login')
-            setForm((current) => ({ ...current, email, password: '', confirmPassword: '' }))
-          }, 700)
-        }
-      } else if (!savedUser || savedUser.email !== email || savedUser.passwordHash !== passwordHash) {
-        setNotice({ type: 'error', text: 'The email or password is incorrect.' })
+        setNotice({ type: 'success', text: 'Account created. You can now sign in.' })
+        setTimeout(() => {
+          setMode('login')
+          setForm((current) => ({ ...current, email: form.email, password: '', confirmPassword: '' }))
+          setNotice(null)
+        }, 800)
       } else {
+        localStorage.setItem('roninToken', data.token)
+        localStorage.setItem('roninUser', JSON.stringify(data.user))
         if (remember) localStorage.setItem('roninRemembered', form.email)
         else localStorage.removeItem('roninRemembered')
-        onAuth()
+
+        if (onAuth) onAuth(data.user)
       }
+    } catch {
+      setNotice({ type: 'error', text: 'Could not reach backend API. Is the backend server running?' })
+    } finally {
       setLoading(false)
-    }, 650)
+    }
   }
 
   const handleForgotPassword = (event) => {
