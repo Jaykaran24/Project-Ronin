@@ -1,0 +1,54 @@
+{
+  "scan_id": "ronin-20260913-091651",
+  "target_url": "https://api.example.com",
+  "provided_endpoints": null,
+  "include_patterns": [],
+  "exclude_patterns": [],
+  "discovered_endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/v1/users",
+      "parameters": [],
+      "content_type": "application/json",
+      "auth_required": null,
+      "sample_response": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/users/{id}",
+      "parameters": [
+        {
+          "name": "id",
+          "location": "path",
+          "param_type": "integer",
+          "required": true,
+          "sample_value": "1"
+        }
+      ],
+      "content_type": "application/json",
+      "auth_required": null,
+      "sample_response": null
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "parameters": [],
+      "content_type": "application/json",
+      "auth_required": null,
+      "sample_response": null
+    },
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "parameters": [],
+      "content_type": "application/json",
+      "auth_required": null,
+      "sample_response": null
+    }
+  ],
+  "attack_surface": [],
+  "validated_findings": [],
+  "current_phase": "completed",
+  "current_endpoint_index": 0,
+  "errors": []
+}

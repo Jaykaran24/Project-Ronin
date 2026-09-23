@@ -1,0 +1,16 @@
+{
+  "scan_id": "ronin-20260913-091651",
+  "target": "https://api.example.com",
+  "scan_started": "2026-09-13T09:16:51.611133+00:00",
+  "scan_completed": "2026-09-13T09:16:53.830073+00:00",
+  "duration_seconds": 2.22,
+  "total_endpoints_tested": 4,
+  "summary": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "info": 0
+  },
+  "findings": []
+}
