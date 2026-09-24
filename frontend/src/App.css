@@ -67,8 +67,8 @@
 .notice.success { color: #067647; background: rgba(6,118,71,.08); border: 1px solid rgba(6,118,71,.2); }
 .notice.error { color: #C01B2C; background: rgba(192,27,44,.08); border: 1px solid rgba(192,27,44,.2); }
 .notice.info { color: #1D4ED8; background: rgba(29,78,216,.08); border: 1px solid rgba(29,78,216,.2); }
-.submit-button { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 46px; margin-top: 4px; border: 0; border-radius: 6px; color: #fff; background: var(--accent); font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; transition: background .2s; }
-.submit-button:hover:not(:disabled) { background: #002488; }
+.submit-button { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 46px; margin-top: 4px; border: 0; border-radius: 6px; font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; transition: background .2s, opacity .2s; }
+.submit-button:hover:not(:disabled) { background: var(--btn-hover-bg, #002488) !important; }
 .submit-button:disabled { cursor: wait; opacity: .7; }
 .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; }
 .switch-copy { margin: 28px 0 0; color: var(--text-muted); text-align: center; font-size: 13px; }
