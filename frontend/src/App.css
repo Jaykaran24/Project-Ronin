@@ -1,12 +1,14 @@
+/* Auth page uses the shared design tokens from index.css.
+   These aliases make the local class names work without duplication. */
 :root {
-  --canvas-bg:      #F7F7F8;
-  --card-bg:        #FFFFFF;
-  --card-border:    #E4E4E7;
-  --text-main:      #111113;
-  --text-muted:     #6B6B74;
-  --accent:         #002FA7;
-  --input-bg:       #FFFFFF;
-  --error:          #C01B2C;
+  --canvas-bg:      var(--bg-canvas);
+  --card-bg:        var(--bg-surface);
+  --card-border:    var(--border);
+  --text-main:      var(--text-primary);
+  --text-muted:     var(--text-muted);
+  --accent:         var(--accent);
+  --input-bg:       var(--bg-surface);
+  --error:          var(--danger);
 }
 
 .auth-page { min-height: 100svh; display: grid; grid-template-columns: minmax(360px, .92fr) minmax(460px, 1.08fr); background: var(--canvas-bg); }

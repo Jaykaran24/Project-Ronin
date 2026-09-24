@@ -12,6 +12,9 @@
 | **CP-002** | 2026-09-23 | Frontend: Authentication & Design Spec | ✅ Completed | Pulled, reviewed, and validated the React 19 + Vite login/signup authentication UI and `design.md` specification. |
 | **CP-003** | 2026-09-23 | Node/Express Backend + Monorepo Restructure | ✅ Completed | Built Node.js + Express REST API with JWT auth + MongoDB. All 5 issue gaps closed. 24/24 Jest tests passing. Swagger docs at /api/docs. |
 | **CP-004** | 2026-09-23 | Merge Conflict Resolution & Dashboard Integration | ✅ Completed | Fixed merge conflict markers in App.jsx, installed react-router-dom, wired full 8-page security dashboard to backend API auth. |
+| **CP-005** | 2026-09-24 | Ronin Brand Identity & SVG Logo Integration | ✅ Completed | Integrated the samurai warrior emblem into Logo.jsx, updated browser favicon.svg, full logo.svg, and safeguarded asset in public/. |
+| **CP-006** | 2026-09-24 | Frontend Directory Normalization (`Ronin-signup` → `frontend`) | ✅ Completed | Renamed `Ronin-signup` to `frontend`, updated monorepo root `package.json` scripts, verified builds. |
+| **CP-007** | 2026-09-24 | Dark / Light Theme Toggle | ✅ Completed | Full dual-theme system: CSS vars, smooth transitions, sun/moon toggle in Topbar, localStorage persistence, no FOUC. |
 
 ---
 
@@ -184,7 +187,83 @@
 
 ---
 
+### [CP-005] — Ronin Brand Identity & SVG Logo Integration
+* **Date:** 2026-09-24
+* **Milestone Target:** UI/UX & Brand Asset Integration
+* **Status:** Complete & Verified
+
+#### What Was Implemented:
+1. **Asset Migration & Safeguarding:**
+   - Saved `Ronin-logo.svg` to [`Ronin-signup/public/Ronin-logo.svg`](Ronin-signup/public/Ronin-logo.svg) and [`Ronin-signup/src/assets/Ronin-logo.svg`](Ronin-signup/src/assets/Ronin-logo.svg) to prevent Vite build cleans from deleting the asset.
+2. **Component Integration ([`Ronin-signup/src/components/Logo.jsx`](Ronin-signup/src/components/Logo.jsx)):**
+   - Replaced the placeholder block "R" SVG with the Ronin samurai emblem paths.
+   - Set dynamic sizing (`size`), customizable theme color (`color = 'var(--accent-cyan, #2dd4bf)'`), and responsive styles.
+   - Automatically propagates the new branding across `Sidebar`, `Topbar` ([`Shell.jsx`](Ronin-signup/src/components/Shell.jsx)), and the Auth screen ([`Auth.jsx`](Ronin-signup/src/pages/Auth.jsx)).
+3. **Favicon & Web Assets:**
+   - Updated [`Ronin-signup/public/favicon.svg`](Ronin-signup/public/favicon.svg) to feature the Ronin emblem inside a dark cybersecurity badge with cyan accents.
+   - Updated [`Ronin-signup/public/logo.svg`](Ronin-signup/public/logo.svg) with the vector emblem and high-contrast typography.
+4. **Verification:**
+   - `npm --prefix ./Ronin-signup run build` passed cleanly in 1.53s with 0 errors.
+
+---
+
+### [CP-006] — Frontend Directory Normalization (`Ronin-signup` → `frontend`)
+* **Date:** 2026-09-24
+* **Milestone Target:** Monorepo Consistency & Professional Structure
+* **Status:** Complete & Verified
+
+#### What Was Implemented:
+1. **Directory Rename:**
+   - Renamed `Ronin-signup/` to `frontend/` across the repository using `git mv` so git history is preserved.
+2. **Root Monorepo Scripts ([`package.json`](package.json)):**
+   - Updated scripts (`dev:frontend`, `build:frontend`, `install:all`, `lint:frontend`) to reference `./frontend`.
+3. **Verification:**
+   - `npm --prefix ./frontend run build` completed cleanly in 1.35s with 0 errors.
+
+---
+
+### [CP-007] — Dark / Light Theme Toggle
+* **Date:** 2026-09-24
+* **Milestone Target:** UI Polish & Accessibility
+* **Status:** Complete & Verified
+
+#### What Was Implemented:
+1. **CSS Custom Property Architecture ([`frontend/src/index.css`](frontend/src/index.css)):**
+   - `:root` retains the existing light (Swiss) palette as the default.
+   - Added `[data-theme="dark"]` selector overriding all color tokens with the cyber-dark palette: `#090D16` canvas, `#2DD4BF` teal accent, `#F0F6FC` primary text, and matching severity/state variants.
+   - Added `transition-property: background-color, border-color, color, fill, stroke, box-shadow` with `0.2s ease` on `*` for smooth theme switching.
+
+2. **`useTheme` Hook ([`frontend/src/components/Shell.jsx`](frontend/src/components/Shell.jsx)):**
+   - Exported `useTheme()` React hook that reads `localStorage['roninTheme']` on mount.
+   - Sets `document.documentElement.setAttribute('data-theme', 'dark')` or removes the attribute for light mode.
+   - Persists preference to `localStorage` on every toggle.
+
+3. **Sun/Moon Icons ([`frontend/src/components/ui.jsx`](frontend/src/components/ui.jsx)):**
+   - Added `sun` (radiant circle with 8 rays) and `moon` (crescent) to the shared inline SVG icon set.
+
+4. **Theme Toggle Button in Topbar ([`frontend/src/components/Shell.jsx`](frontend/src/components/Shell.jsx)):**
+   - Added a toggle button in the Topbar right section (between notifications bell and user menu).
+   - Shows ☀️ `sun` icon in dark mode (click to switch to light), 🌙 `moon` icon in light mode (click to switch to dark).
+   - Topbar `background` is dynamically set to `rgba(13,17,23,.88)` in dark mode and `rgba(255,255,255,.85)` in light mode.
+
+5. **Flash-of-Unstyled-Content Prevention ([`frontend/index.html`](frontend/index.html)):**
+   - Added a tiny blocking inline `<script>` in `<head>` that reads `localStorage['roninTheme']` and applies `data-theme` to `<html>` before React renders, preventing a white-flash when loading with a saved dark theme.
+
+6. **Auth Page Theme Support ([`frontend/src/App.css`](frontend/src/App.css)):**
+   - Replaced all hardcoded color values in `App.css :root` with aliases pointing to the shared `index.css` design tokens (`var(--bg-canvas)`, `var(--bg-surface)`, etc.).
+   - The Auth page (login/signup) now fully adapts to both themes.
+
+7. **Wired to DashboardShell ([`frontend/src/App.jsx`](frontend/src/App.jsx)):**
+   - `DashboardShell` calls `useTheme()` and passes `theme` + `onToggleTheme` props down to `Topbar`.
+
+8. **Verification:**
+   - `npm --prefix ./frontend run build` completed cleanly in 478ms with 0 errors.
+
+---
+
 ## 🚀 Next Session Roadmap
 - [ ] Connect live telemetry data from scanner to the dashboard `/dashboard/agents` and `/dashboard/scans` routes.
 - [ ] Implement `tools/http_client.py` and `agents/recon.py` on the Python scanner engine.
+
+
 

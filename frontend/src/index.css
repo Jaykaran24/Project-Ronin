@@ -67,6 +67,68 @@
   --topbar-h: 56px;
 }
 
+/* =========================================================
+   DARK THEME — cyber black canvas, teal/blue accents
+   Applied by adding data-theme="dark" to <html>
+   ========================================================= */
+[data-theme="dark"] {
+  /* Canvas */
+  --bg-canvas:       #090D16;
+  --bg-surface:      #0D1117;
+  --bg-subtle:       #161B22;
+  --bg-hover:        #1C2128;
+
+  /* Borders */
+  --border:          #21262D;
+  --border-strong:   #30363D;
+  --focus-ring:      #2DD4BF;
+
+  /* Accent — Cyber Teal */
+  --accent:          #2DD4BF;
+  --accent-hover:    #5EEAD4;
+  --accent-soft:     rgba(45,212,191,.10);
+  --accent-soft-strong: rgba(45,212,191,.18);
+
+  /* Text */
+  --text-primary:    #F0F6FC;
+  --text-secondary:  #8B949E;
+  --text-muted:      #6E7681;
+
+  /* Severity — slightly brighter for dark bg */
+  --sev-critical:      #FF7B93;
+  --sev-critical-soft: rgba(255,123,147,.10);
+  --sev-high:          #FFA657;
+  --sev-high-soft:     rgba(255,166,87,.10);
+  --sev-medium:        #E3B341;
+  --sev-medium-soft:   rgba(227,179,65,.10);
+  --sev-low:           #8B949E;
+  --sev-low-soft:      rgba(139,148,158,.10);
+
+  /* State */
+  --success:      #3FB950;
+  --success-soft: rgba(63,185,80,.10);
+  --danger:       #FF7B93;
+  --danger-soft:  rgba(255,123,147,.10);
+  --warning:      #E3B341;
+  --warning-soft: rgba(227,179,65,.10);
+
+  /* Shadow — deeper for dark */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.4);
+  --shadow-lg: 0 16px 40px rgba(0,0,0,.6);
+}
+
+/* Smooth transition when switching themes */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-duration: 0.2s;
+  transition-timing-function: ease;
+}
+
+/* But keep animations fast for existing keyframe animations */
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme] * { /* scoped so animation-duration rules still apply */ }
+}
+
 html { font-size: 15px; }
 body {
   font-family: var(--font-sans);

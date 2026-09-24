@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { Sidebar, Topbar } from './components/Shell.jsx'
+import { Sidebar, Topbar, useTheme } from './components/Shell.jsx'
 import { MOCK_USER } from './data/mock.js'
 
 // Auth page
@@ -20,6 +20,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 function DashboardShell({ user, onSignOut }) {
   const [navOpen, setNavOpen] = useState(false)
+  const { theme, toggle: onToggleTheme } = useTheme()
 
   // Map user object for topbar (fullName -> name)
   const displayUser = user ? {
@@ -36,6 +37,8 @@ function DashboardShell({ user, onSignOut }) {
         onSignOut={onSignOut}
         navOpen={navOpen}
         onToggleNav={() => setNavOpen(o => !o)}
+        theme={theme}
+        onToggleTheme={onToggleTheme}
       />
 
       <main className="app-main" style={{

@@ -1,6 +1,31 @@
+import { useState, useEffect, useCallback } from 'react'
 import { NavLink } from 'react-router-dom'
 import { Icon, StatusDot } from './ui.jsx'
 import { Logo, LogoMark } from './Logo.jsx'
+
+/* ── Theme hook ─────────────────────────────────────────── */
+export function useTheme() {
+  const [theme, setTheme] = useState(() => {
+    // Respect stored preference; default to 'light' (matches :root vars)
+    return localStorage.getItem('roninTheme') || 'light'
+  })
+
+  useEffect(() => {
+    const html = document.documentElement
+    if (theme === 'dark') {
+      html.setAttribute('data-theme', 'dark')
+    } else {
+      html.removeAttribute('data-theme')
+    }
+    localStorage.setItem('roninTheme', theme)
+  }, [theme])
+
+  const toggle = useCallback(() => {
+    setTheme(t => (t === 'dark' ? 'light' : 'dark'))
+  }, [])
+
+  return { theme, toggle }
+}
 
 const NAV = [
   { to: '/dashboard',       icon: 'overview',    label: 'Overview'     },
@@ -92,12 +117,15 @@ export function Sidebar({ open, onClose }) {
   )
 }
 
-export function Topbar({ user, onSignOut, navOpen, onToggleNav }) {
+export function Topbar({ user, onSignOut, navOpen, onToggleNav, theme, onToggleTheme }) {
+  const isDark = theme === 'dark'
   return (
     <header className="topbar" style={{
       position: 'fixed', top: 0, left: 0, right: 0,
       height: 'var(--topbar-h)',
-      background: 'rgba(255,255,255,.85)',
+      background: isDark
+        ? 'rgba(13,17,23,.88)'
+        : 'rgba(255,255,255,.85)',
       backdropFilter: 'saturate(180%) blur(6px)',
       WebkitBackdropFilter: 'saturate(180%) blur(6px)',
       borderBottom: '1px solid var(--border)',
@@ -134,6 +162,21 @@ export function Topbar({ user, onSignOut, navOpen, onToggleNav }) {
 
       {/* Right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
+        {/* Theme toggle */}
+        <button
+          onClick={onToggleTheme}
+          aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={isDark ? 'Light mode' : 'Dark mode'}
+          style={{
+            background: 'transparent', border: 'none',
+            color: 'var(--text-muted)', cursor: 'pointer', padding: 4,
+            borderRadius: 'var(--r-sm)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <Icon name={isDark ? 'sun' : 'moon'} size={18} />
+        </button>
+
         <button style={{
           background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4,
           borderRadius: 'var(--r-sm)',
@@ -164,3 +207,4 @@ export function Topbar({ user, onSignOut, navOpen, onToggleNav }) {
     </header>
   )
 }
+

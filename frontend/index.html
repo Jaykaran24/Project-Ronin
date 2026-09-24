@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=ronin-2" />
+    <link rel="alternate icon" type="image/svg+xml" href="/Ronin-logo.svg?v=ronin-2" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#090d16" />
+    <!-- Theme: applied before first paint to prevent FOUC -->
+    <script>
+      (function(){
+        try {
+          var t = localStorage.getItem('roninTheme');
+          if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+        } catch(e) {}
+      })();
+    </script>
+    <title>Ronin — Autonomous API Security</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
