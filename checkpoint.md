@@ -15,6 +15,7 @@
 | **CP-005** | 2026-09-24 | Ronin Brand Identity & SVG Logo Integration | ✅ Completed | Integrated the samurai warrior emblem into Logo.jsx, updated browser favicon.svg, full logo.svg, and safeguarded asset in public/. |
 | **CP-006** | 2026-09-24 | Frontend Directory Normalization (`Ronin-signup` → `frontend`) | ✅ Completed | Renamed `Ronin-signup` to `frontend`, updated monorepo root `package.json` scripts, verified builds. |
 | **CP-007** | 2026-09-24 | Dark / Light Theme Toggle | ✅ Completed | Full dual-theme system: CSS vars, smooth transitions, sun/moon toggle in Topbar, localStorage persistence, no FOUC. |
+| **CP-008** | 2026-09-25 | AI Engine — Phase 1: Foundation & Agent Infrastructure | ✅ Completed | LangGraph StateGraph, Pydantic v2 state models, Orchestrator + Recon agents, CLI runner. Smoke test passed. See `ai_phase1.md`. |
 
 ---
 
@@ -261,9 +262,72 @@
 
 ---
 
+### [CP-008] — AI Engine Phase 1: Foundation & Agent Infrastructure
+* **Date:** 2026-09-25
+* **Milestone Target:** Autonomous Agent Engine — Phase 1
+* **Status:** Complete & Verified
+* **Full Detail:** See [`ai_phase1.md`](ai_phase1.md)
+
+#### What Was Built:
+
+1. **Pydantic v2 State Models ([`scanner/models/state.py`](scanner/models/state.py)):**
+   - `ScanState` — single shared dict flowing through all LangGraph nodes
+   - `ScanConfig` — target URL, LLM model, thresholds, Ollama URL
+   - `Endpoint`, `Parameter`, `HttpEvidence`, `ProofOfConcept`, `SuspectedVuln`, `Finding`
+   - `AgentState` — per-agent status tracking (waiting → active → done/error)
+   - Enums: `ScanPhase`, `AgentStatus`, `SeverityLevel`, `HttpMethod`, `VulnCategory`
+
+2. **BaseAgent ([`scanner/agents/base.py`](scanner/agents/base.py)):**
+   - Shared `ChatOllama` LLM handle (temperature=0.1, ctx=8192)
+   - `ask()` — plain text generation for reports
+   - `ask_structured()` — Pydantic-typed structured output with auto-retry on parse failure
+   - State logging and serialization helpers
+
+3. **Orchestrator Agent ([`scanner/agents/orchestrator.py`](scanner/agents/orchestrator.py)):**
+   - Two-tier routing: rule-based (instant) + LLM (complex cases only)
+   - `OrchestratorDecision` Pydantic schema for typed LLM routing output
+   - Endpoint queue built after recon, sorted by `risk_score` descending
+   - Phase transitions: INIT → RECON → EXPLOIT → VALIDATION → REPORT → DONE
+
+4. **Recon Agent ([`scanner/agents/recon.py`](scanner/agents/recon.py)):**
+   - OpenAPI/Swagger probing at 10 common paths
+   - Common REST path fallback (12 patterns, sync httpx)
+   - OpenAPI 3.x and Swagger 2.x parser
+   - LLM enrichment: risk score (1–10), auth detection, likely vuln categories per endpoint
+   - Graceful LLM failure — defaults to risk_score=5, never drops an endpoint
+
+5. **LangGraph StateGraph ([`scanner/graph.py`](scanner/graph.py)):**
+   - 7 nodes: `__start__`, `orchestrator`, `recon`, `exploit`(stub), `validate`(stub), `report`, `done`
+   - Conditional edge routing from orchestrator via `route_from_orchestrator()`
+   - All agents loop back to orchestrator; `report` and `done` terminate to `END`
+   - Phase 1 stubs for exploit/validate ensure graph runs end-to-end
+
+6. **Scanner CLI Runner ([`scanner/runner.py`](scanner/runner.py)):**
+   - `python -m scanner.runner <target_url>` entry point
+   - Rich spinner with live phase/progress display
+   - Streams `RONIN_EVENT:{json}` to stderr for Node.js dashboard integration
+   - Markdown report saved to `ronin_report_<scan-id>.md` on completion
+
+7. **Packages Installed:**
+   - `langgraph==1.2.12`, `langchain==1.4.2`, `langchain-ollama==1.1.0`
+   - `langchain-core==1.6.5`, `ollama==0.6.2`, `pydantic==2.13.5`
+
+8. **Smoke Test Passed:**
+   ```
+   Graph nodes: ['__start__', 'orchestrator', 'recon', 'exploit', 'validate', 'report', 'done']
+   ```
+
+---
+
 ## 🚀 Next Session Roadmap
-- [ ] Connect live telemetry data from scanner to the dashboard `/dashboard/agents` and `/dashboard/scans` routes.
-- [ ] Implement `tools/http_client.py` and `agents/recon.py` on the Python scanner engine.
 
+### AI Engine
+- [ ] **Phase 2** — Recon enhancement: async httpx, JS crawling, GraphQL introspection, header analysis
+- [ ] **Phase 3** — Exploit Agent: BOLA, broken auth, mass assignment, rate limit bypass, method confusion
+- [ ] **Phase 4** — Validation Agent: Docker sandbox replay, PoC generation
+- [ ] **Phase 5** — Full Orchestrator + report writer
+- [ ] **Phase 6** — Wire scanner events to Node.js backend SSE → React dashboard
 
-
+### Dashboard
+- [ ] Connect live telemetry from scanner to `/dashboard/agents` and `/dashboard/scans`
+- [ ] Replace mock data in `Overview.jsx` with real scan state from backend

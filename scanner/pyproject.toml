@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name            = "ronin-scanner"
+version         = "0.1.0"
+description     = "Ronin — Autonomous API Security Scanner (Agent Engine)"
+requires-python = ">=3.12"
+dependencies = [
+    "langgraph>=1.2",
+    "langchain>=1.4",
+    "langchain-ollama>=1.1",
+    "langchain-core>=1.6",
+    "pydantic>=2.13",
+    "httpx>=0.28",
+    "typer>=0.27",
+    "rich>=15.0",
+]
+
+[project.scripts]
+ronin-scan = "scanner.runner:app"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["scanner*"]
