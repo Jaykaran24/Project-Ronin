@@ -21,7 +21,13 @@ const connectDB = async () => {
     console.log(`[DB] MongoDB connected → ${conn.connection.host}/${conn.connection.name}`);
   } catch (err) {
     console.error(`[DB] Connection failed: ${err.message}`);
-    process.exit(1);
+
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[DB] Running in development mode — continuing without DB.');
+      console.warn('[DB] Dev hardcoded credentials are active (see authController.js).');
+    } else {
+      process.exit(1);
+    }
   }
 };
 

@@ -85,7 +85,7 @@ export default function Settings() {
           <SettingsSection title="Infrastructure Status">
             <StatusRow label="Ollama"   status="online" detail="qwen2.5-coder:14b · localhost:11434" />
             <StatusRow label="Sandbox"  status="ready"  detail="Docker 24.x · Alpine Linux · Isolated" />
-            <StatusRow label="Backend"  status="online" detail="FastAPI · localhost:8000" />
+            <StatusRow label="Backend"  status="online" detail="Express.js · localhost:8000" />
             <StatusRow label="Database" status="online" detail="MongoDB · localhost:27017" />
           </SettingsSection>
 

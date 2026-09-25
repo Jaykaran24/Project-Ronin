@@ -162,6 +162,50 @@ exports.login = async (req, res, next) => {
 
     const { email, password } = req.body;
 
+    // ╔══════════════════════════════════════════════════════════╗
+    // ║  DEV-ONLY BYPASS — hardcoded offline credentials        ║
+    // ║  Skips DB entirely so the app works without MongoDB.    ║
+    // ║  REMOVE THIS BLOCK BEFORE PRODUCTION DEPLOYMENT.        ║
+    // ╚══════════════════════════════════════════════════════════╝
+    if (process.env.NODE_ENV === 'development') {
+      const DEV_ACCOUNTS = [
+        {
+          email:    'dev@ronin.local',
+          password: 'devpassword',
+          id:       'dev-user-001',
+          fullName: 'Dev User',
+          role:     'admin',
+        },
+        {
+          email:    'jay@ronin.local',
+          password: 'ronin1234',
+          id:       'dev-user-002',
+          fullName: 'Jaykaran',
+          role:     'admin',
+        },
+      ];
+
+      const devAccount = DEV_ACCOUNTS.find(
+        (a) => a.email === email.toLowerCase().trim() && a.password === password
+      );
+
+      if (devAccount) {
+        const token = signToken(devAccount.id);
+        console.log(`[DEV AUTH] Bypassed DB — signed in as ${devAccount.email}`);
+        return res.status(200).json({
+          success: true,
+          token,
+          user: {
+            id:       devAccount.id,
+            fullName: devAccount.fullName,
+            email:    devAccount.email,
+            role:     devAccount.role,
+          },
+        });
+      }
+    }
+    // ── End dev bypass ──────────────────────────────────────────
+
     // Fetch user with password field (hidden by default via select:false)
     const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+password');
     if (!user) {
