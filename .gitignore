@@ -30,3 +30,6 @@ out/
 tmp/
 temp/
 *.tmp
+
+# Doc Files
+*.docx
