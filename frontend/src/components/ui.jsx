@@ -2,6 +2,10 @@ import { useEffect, useRef } from 'react'
 
 // Shared icon set — SVG inline, stroke-based, consistent 1.8 stroke width
 export function Icon({ name, size = 18, className = '', style = {} }) {
+  const resolvedName = {
+    logout: 'signout',
+  }[name] || name
+
   const icons = {
     // Navigation
     overview:    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />,
@@ -45,11 +49,17 @@ export function Icon({ name, size = 18, className = '', style = {} }) {
     zap:         <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
     eye:         <><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></>,
     x:           <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
+    radar:       <><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="10"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><path d="m12 12 7-7"/></>,
+    folder:      <><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2h7.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"/></>,
+    code:        <><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/><path d="m14 4-4 16"/></>,
+    flag:        <><path d="M5 21V5"/><path d="M5 5h11l-2 4 2 4H5"/></>,
 
     // Theme
     sun:         <><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></>,
     moon:        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>,
   }
+
+  const IconShape = icons[resolvedName] ?? icons.sparkle
 
   return (
     <svg
@@ -65,28 +75,29 @@ export function Icon({ name, size = 18, className = '', style = {} }) {
       className={className}
       style={style}
     >
-      {icons[name] ?? null}
+      {IconShape}
     </svg>
   )
 }
 
 export function SeverityBadge({ level }) {
   const map = {
-    critical: { label: 'Critical', color: 'var(--sev-critical)', bg: 'var(--sev-critical-soft)' },
-    high:     { label: 'High',     color: 'var(--sev-high)',     bg: 'var(--sev-high-soft)'      },
-    medium:   { label: 'Medium',   color: 'var(--sev-medium)',   bg: 'var(--sev-medium-soft)'     },
-    low:      { label: 'Low',      color: 'var(--sev-low)',      bg: 'var(--sev-low-soft)'        },
+    critical: { label: 'Critical', color: 'var(--sev-critical)', bg: 'var(--sev-critical-soft)', border: 'rgba(244, 63, 94, 0.28)' },
+    high:     { label: 'High',     color: 'var(--sev-high)',     bg: 'var(--sev-high-soft)',     border: 'rgba(251, 146, 60, 0.28)' },
+    medium:   { label: 'Medium',   color: 'var(--sev-medium)',   bg: 'var(--sev-medium-soft)',   border: 'rgba(251, 191, 36, 0.28)' },
+    low:      { label: 'Low',      color: 'var(--sev-low)',      bg: 'var(--sev-low-soft)',      border: 'rgba(148, 163, 184, 0.22)' },
   }
-  const { label, color, bg } = map[level] ?? { label: level, color: 'var(--text-muted)', bg: 'var(--bg-subtle)' }
+  const { label, color, bg, border } = map[level] ?? { label: level, color: 'var(--text-muted)', bg: 'var(--bg-subtle)', border: 'var(--border)' }
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,
-      padding: '3px 9px', borderRadius: 'var(--r-sm)',
-      fontSize: 11.5, fontWeight: 600, letterSpacing: '0.1px',
-      color, background: bg,
+      padding: '3px 10px', borderRadius: 'var(--r-full)',
+      fontSize: 11, fontWeight: 650, letterSpacing: '0.4px',
+      textTransform: 'uppercase',
+      color, background: bg, border: `1px solid ${border}`,
       whiteSpace: 'nowrap',
     }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0, boxShadow: level === 'critical' ? '0 0 6px var(--sev-critical)' : undefined }} />
       {label}
     </span>
   )
@@ -107,30 +118,55 @@ export function StatusDot({ status, pulse = false }) {
     offline:   'var(--danger)',
   }
   const color = colors[status] ?? 'var(--text-muted)'
+  const shouldPulse = pulse && (status === 'active' || status === 'running')
+
   return (
     <span style={{
-      display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
-      background: color, flexShrink: 0,
-      ...(pulse && (status === 'active' || status === 'running')
-        ? { animation: 'pulse-dot 1.6s ease-in-out infinite' } : {}),
-    }} />
+      position: 'relative',
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: 9,
+      height: 9,
+      flexShrink: 0,
+    }}>
+      {shouldPulse && (
+        <span style={{
+          position: 'absolute',
+          inset: -3,
+          borderRadius: '50%',
+          background: color,
+          opacity: 0.5,
+          animation: 'radar-pulse 2s cubic-bezier(0, 0, 0.2, 1) infinite',
+        }} />
+      )}
+      <span style={{
+        width: 6,
+        height: 6,
+        borderRadius: '50%',
+        background: color,
+        zIndex: 1,
+        boxShadow: shouldPulse ? `0 0 8px ${color}` : undefined,
+      }} />
+    </span>
   )
 }
 
 export function MethodBadge({ method }) {
   const colors = {
-    GET:    { bg: 'var(--success-soft)',       color: 'var(--success)'      },
-    POST:   { bg: 'var(--accent-soft)',        color: 'var(--accent)'       },
-    PUT:    { bg: 'var(--sev-high-soft)',       color: 'var(--sev-high)'     },
-    PATCH:  { bg: 'var(--sev-medium-soft)',     color: 'var(--sev-medium)'   },
-    DELETE: { bg: 'var(--sev-critical-soft)',   color: 'var(--sev-critical)' },
+    GET:    { bg: 'var(--success-soft)',       color: 'var(--success)',      border: 'rgba(34, 197, 94, 0.24)'  },
+    POST:   { bg: 'var(--accent-soft)',        color: 'var(--accent)',       border: 'var(--accent-soft-strong)' },
+    PUT:    { bg: 'var(--sev-high-soft)',       color: 'var(--sev-high)',     border: 'rgba(251, 146, 60, 0.24)' },
+    PATCH:  { bg: 'var(--sev-medium-soft)',     color: 'var(--sev-medium)',   border: 'rgba(251, 191, 36, 0.24)' },
+    DELETE: { bg: 'var(--sev-critical-soft)',   color: 'var(--sev-critical)', border: 'rgba(244, 63, 94, 0.24)'  },
   }
-  const c = colors[method] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-muted)' }
+  const c = colors[method] ?? { bg: 'var(--bg-subtle)', color: 'var(--text-muted)', border: 'var(--border)' }
   return (
     <span className="mono" style={{
-      display: 'inline-block', padding: '2px 7px', borderRadius: 4,
-      fontSize: 11, fontWeight: 600, letterSpacing: '0.4px',
-      background: c.bg, color: c.color, whiteSpace: 'nowrap',
+      display: 'inline-block', padding: '2px 8px', borderRadius: 'var(--r-sm)',
+      fontSize: 11, fontWeight: 700, letterSpacing: '0.6px',
+      background: c.bg, color: c.color, border: `1px solid ${c.border}`,
+      whiteSpace: 'nowrap',
     }}>
       {method}
     </span>
@@ -139,29 +175,34 @@ export function MethodBadge({ method }) {
 
 export function StatusBadge({ status }) {
   const map = {
-    running:   { label: 'Running',   color: 'var(--accent)',  bg: 'var(--accent-soft)'  },
-    completed: { label: 'Completed', color: 'var(--success)', bg: 'var(--success-soft)' },
-    paused:    { label: 'Paused',    color: 'var(--warning)', bg: 'var(--warning-soft)' },
-    failed:    { label: 'Failed',    color: 'var(--danger)',  bg: 'var(--danger-soft)'  },
-    aborted:   { label: 'Aborted',   color: 'var(--danger)',  bg: 'var(--danger-soft)'  },
-    online:    { label: 'Online',    color: 'var(--success)', bg: 'var(--success-soft)' },
-    ready:     { label: 'Ready',     color: 'var(--success)', bg: 'var(--success-soft)' },
-    offline:   { label: 'Offline',   color: 'var(--danger)',  bg: 'var(--danger-soft)'  },
+    running:   { label: 'Running',   color: 'var(--accent)',  bg: 'var(--accent-soft)',   border: 'var(--accent-soft-strong)' },
+    completed: { label: 'Completed', color: 'var(--success)', bg: 'var(--success-soft)',  border: 'rgba(34, 197, 94, 0.24)' },
+    paused:    { label: 'Paused',    color: 'var(--warning)', bg: 'var(--warning-soft)',  border: 'rgba(251, 191, 36, 0.24)' },
+    failed:    { label: 'Failed',    color: 'var(--danger)',  bg: 'var(--danger-soft)',   border: 'rgba(244, 63, 94, 0.24)' },
+    aborted:   { label: 'Aborted',   color: 'var(--danger)',  bg: 'var(--danger-soft)',   border: 'rgba(244, 63, 94, 0.24)' },
+    online:    { label: 'Online',    color: 'var(--success)', bg: 'var(--success-soft)',  border: 'rgba(34, 197, 94, 0.24)' },
+    ready:     { label: 'Ready',     color: 'var(--success)', bg: 'var(--success-soft)',  border: 'rgba(34, 197, 94, 0.24)' },
+    offline:   { label: 'Offline',   color: 'var(--danger)',  bg: 'var(--danger-soft)',   border: 'rgba(244, 63, 94, 0.24)' },
   }
   const s = map[status] ?? map.completed
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 'var(--r-full)', fontSize: 11.5, fontWeight: 600, background: s.bg, color: s.color }}>
-      <StatusDot status={status} pulse={status === 'running'} />
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      padding: '3px 10px', borderRadius: 'var(--r-full)',
+      fontSize: 11.5, fontWeight: 600, letterSpacing: '0.2px',
+      background: s.bg, color: s.color, border: `1px solid ${s.border}`,
+    }}>
+      <StatusDot status={status} pulse={status === 'running' || status === 'active'} />
       {s.label}
     </span>
   )
 }
 
-export function Card({ children, style = {}, className = '', onClick }) {
+export function Card({ children, style = {}, className = '', onClick, glow = false }) {
   return (
     <div
       onClick={onClick}
-      className={`card ${className}`}
+      className={`card ${glow ? 'card-glow' : ''} ${onClick ? 'interactive' : ''} ${className}`}
       style={{
         ...(onClick ? { cursor: 'pointer' } : {}),
         ...style,

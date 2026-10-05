@@ -16,6 +16,8 @@
 | **CP-006** | 2026-09-24 | Frontend Directory Normalization (`Ronin-signup` → `frontend`) | ✅ Completed | Renamed `Ronin-signup` to `frontend`, updated monorepo root `package.json` scripts, verified builds. |
 | **CP-007** | 2026-09-24 | Dark / Light Theme Toggle | ✅ Completed | Full dual-theme system: CSS vars, smooth transitions, sun/moon toggle in Topbar, localStorage persistence, no FOUC. |
 | **CP-008** | 2026-09-25 | AI Engine — Phase 1: Foundation & Agent Infrastructure | ✅ Completed | LangGraph StateGraph, Pydantic v2 state models, Orchestrator + Recon agents, CLI runner. Smoke test passed. See `ai_phase1.md`. |
+| **CP-009** | 2026-10-05 | Modern UI Design System & Visual Polish | ✅ Completed | Cyber-grade UI upgrade: subtle glassmorphism, radar pulse indicators, specular highlights, glowing telemetry, and elevated components. |
+| **CP-010** | 2026-10-05 | Full `improvement.md` Dashboard Implementation | ✅ Completed | Implemented all 8 improvement backlog sections: interactive activity stream, CVSS 3.1 breakdown, PoC inspector, route accordions, container terminal, OWASP matrix, and diagnostics. |
 
 ---
 
@@ -319,11 +321,94 @@
 
 ---
 
+### [CP-009] — Modern UI Design System & Visual Polish
+* **Date:** 2026-10-05
+* **Milestone Target:** Modern Cyber-Grade UI/UX Design System
+* **Status:** Complete & Verified (`npm run build` cleanly passed in 421ms)
+
+#### What Was Built & Polished:
+
+1. **Modern Design Tokens & Specular Highlights ([`frontend/src/index.css`](frontend/src/index.css)):**
+   - Added `--accent-glow`, `--shadow-card`, `--shadow-card-hover`, `--card-highlight` specular inner highlight.
+   - High-tech dark-mode ambient grid background pattern for cybersecurity operations feel.
+   - Modernized typography with `font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11'`.
+   - Added `@keyframes radar-pulse` and modern dialog/drawer spring animations.
+
+2. **Component Library Elevation ([`frontend/src/components/ui.jsx`](frontend/src/components/ui.jsx)):**
+   - **`StatusDot`:** Upgraded with animated radar pulse ping when running or active.
+   - **`SeverityBadge`:** Rounded pill capsule with tinted border, uppercase tracking, and critical glow dot.
+   - **`MethodBadge`:** Refined HTTP method badges (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`) with semi-transparent tinted backgrounds and colored borders.
+   - **`Card`:** Added `glow` and `interactive` props with smooth hover elevation.
+   - **`Drawer` & `Dialog`:** Upgraded to high-clarity frosted glass with `backdrop-filter: blur(20px)`.
+
+3. **Shell Layout Elevation ([`frontend/src/components/Shell.jsx`](frontend/src/components/Shell.jsx)):**
+   - **Topbar:** Glassmorphic bar (`backdrop-filter: blur(16px)`), target status capsule (`TARGET: api.vulnerable.local [LOCAL]`), theme toggle button with tactile hover, user avatar with glowing border.
+   - **Sidebar:** Frosted navigation links with active state pill, system infrastructure status card in footer.
+
+4. **Pages Modernized:**
+   - **[`Overview.jsx`](frontend/src/pages/Overview.jsx):** Glowing active scan hero, telemetry terminal prompt container (`> Live Telemetry`), elevated multi-agent pipeline cards with live pulse, clean findings list.
+   - **[`AgentGraph.jsx`](frontend/src/pages/AgentGraph.jsx):** Sleek workflow capsules, glowing active nodes, elevated telemetry cards, and terminal-style dark console in node inspector drawer.
+   - **[`Scans.jsx`](frontend/src/pages/Scans.jsx):** Stat badge cards, glowing scan progress indicator, modernized 3-step launch dialog.
+   - **[`Findings.jsx`](frontend/src/pages/Findings.jsx):** Elevated severity distribution bar, copyable cURL reproduction terminal container in drawer.
+   - **[`App.css`](frontend/src/App.css):** Glowing input shells, tactile submit button (`active: scale(0.98)`).
+
+---
+
+### [CP-010] — Full `improvement.md` Dashboard Implementation
+* **Date:** 2026-10-05
+* **Milestone Target:** Comprehensive Platform Improvement Backlog
+* **Status:** Complete & Verified (`npm run build` passed in 934ms, 0 errors)
+
+#### Improvements Delivered:
+
+1. **Dark Mode Input Glitches Fixed ([`Settings.jsx`](frontend/src/pages/Settings.jsx)):**
+   - Inputs now use explicit dark surface background (`var(--bg-subtle)`), subtle borders (`var(--border-strong)`), and high-contrast text.
+   - Added real-time service latency indicators (`OpenRouter / Ollama: 18ms`, `Backend: 4ms`, `Sandbox: 2ms`, `MongoDB: 22ms`).
+   - Added "Run Diagnostics" button with live health ping feedback.
+   - Added Cloud vs Local inference mode toggle with dynamic model selector dropdown.
+
+2. **Sidebar Hierarchy & Route Badges ([`Shell.jsx`](frontend/src/components/Shell.jsx)):**
+   - Added high-contrast active route indicator (`border-left: 3px solid var(--accent)`).
+   - Added route badge counters: `1` for Scans, `5` for Findings, `12` for Endpoints, and `3` for Sandbox.
+
+3. **Interactive Activity Stream & Pipeline Controls ([`Overview.jsx`](frontend/src/pages/Overview.jsx)):**
+   - Filter chips for agent types (`All`, `Exploit`, `Validate`, `Orchestrator`, `Recon`).
+   - Expandable inline payload inspector showing HTTP method, path, request headers, request body, status, and response snippet.
+   - "Live Follow" auto-scroll stream toggle.
+   - Granular pause, skip, and re-test action controls on pipeline cards.
+   - Displayed live token inference speed (`42 tok/s · Qwen 3.8 27B Cloud`) on the active agent card.
+
+4. **PoC Inspector Drawer & CVSS 3.1 Vector Breakdown ([`Findings.jsx`](frontend/src/pages/Findings.jsx)):**
+   - Added tabbed inspector in detail drawer: **Attack Narrative**, **HTTP Request & Response**, **PoC Scripts (cURL & Python)**, and **Remediation & Code Patch**.
+   - Collapsible CVSS 3.1 Vector Breakdown displaying full vector string (`CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N`) with all sub-metrics.
+   - Added "Export to GitHub / Jira Issue" button with pre-formatted Markdown template copying.
+
+5. **Hierarchical Route Grouping & Schema Drill-Down ([`Endpoints.jsx`](frontend/src/pages/Endpoints.jsx)):**
+   - Grouped discovered endpoints by resource prefix (`/api/v1/users`, `/api/auth`, `/api/v1/profile`, `/api/v1/orders`, `/api/v1/products`) with collapsible accordion view and flat list toggle.
+   - Added Schema Drill-Down drawer displaying parameter specifications (types, locations, required flags, descriptions) parsed during Recon.
+   - Added "Scan Route" action button on every endpoint row for targeted single-endpoint fuzzing.
+
+6. **Sandbox Terminal Console & Quotas ([`Sandbox.jsx`](frontend/src/pages/Sandbox.jsx)):**
+   - Added "View Terminal" modal displaying raw container `stdout` / `stderr` execution stream.
+   - Added resource quota cards: Memory Ceiling (`512 MB`), CPU Quota (`1.0 vCPU`), Timeout (`30s`), and Filesystem (`Read-Only + tmpfs`).
+   - Added network egress containment banner confirming strict egress lock to target host.
+
+7. **OWASP Compliance Matrix & Scan Comparison ([`Reports.jsx`](frontend/src/pages/Reports.jsx)):**
+   - Added Executive Compliance View modal mapping findings to the OWASP API Security Top 10 (2023).
+   - Added "Compare With Previous Scan" modal displaying delta stats (+3 new, -1 resolved) and remediated vulnerability details.
+   - Export buttons for PDF, HTML, and JSON.
+
+8. **LangGraph Cyclic Loops & Decisions ([`AgentGraph.jsx`](frontend/src/pages/AgentGraph.jsx)):**
+   - Added cyclic retry feedback loop visual between Exploit and Validation nodes (`Exploit ⇄ Validation`).
+   - Added node inspector drawer displaying LLM turn decisions and system prompt context.
+
+---
+
 ## 🚀 Next Session Roadmap
 
 ### AI Engine
 - [ ] **Phase 2** — Recon enhancement: async httpx, JS crawling, GraphQL introspection, header analysis
-- [ ] **Phase 3** — Exploit Agent: BOLA, broken auth, mass assignment, rate limit bypass, method confusion
+- [ ] **Phase 3** — Exploit Agent: BOLA, broken auth, mass assignment, SQL injection detection, XSS reflection
 - [ ] **Phase 4** — Validation Agent: Docker sandbox replay, PoC generation
 - [ ] **Phase 5** — Full Orchestrator + report writer
 - [ ] **Phase 6** — Wire scanner events to Node.js backend SSE → React dashboard
@@ -331,3 +416,5 @@
 ### Dashboard
 - [ ] Connect live telemetry from scanner to `/dashboard/agents` and `/dashboard/scans`
 - [ ] Replace mock data in `Overview.jsx` with real scan state from backend
+
+

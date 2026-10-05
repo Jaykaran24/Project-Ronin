@@ -140,9 +140,9 @@ export default function AuthPage({ onAuth }) {
   }
 
   // Submit button colors — explicit so they're readable in both themes
-  const btnBg    = isDark ? '#2DD4BF' : '#002FA7'
-  const btnColor = isDark ? '#090D16' : '#ffffff'
-  const btnHover = isDark ? '#5EEAD4' : '#002488'
+  const btnBg    = isDark ? '#64D7B0' : '#087F5B'
+  const btnColor = isDark ? '#0B1118' : '#ffffff'
+  const btnHover = isDark ? '#88E5C7' : '#06694C'
 
   return (
     <main className="auth-page" style={{ position: 'relative' }}>

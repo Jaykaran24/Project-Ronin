@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Card, Button, Icon, StatusDot, StatusBadge, PageHeader, Dialog } from '../components/ui.jsx'
 import { MOCK_SCANS, MOCK_SCAN, MOCK_AGENTS } from '../data/mock.js'
 
-const STEP_LABELS = ['Target', 'Input mode', 'Review']
+const STEP_LABELS = ['Target Specification', 'Attack Input Mode', 'Review & Launch']
 
 export default function Scans() {
   const [showLaunch, setShowLaunch] = useState(false)
@@ -14,36 +14,36 @@ export default function Scans() {
     <div className="page">
       <PageHeader
         title="Scans"
-        subtitle="Operational scan history and live scan management."
+        subtitle="Operational scan history, target auditing, and live execution telemetry."
         actions={
           <Button variant="primary" onClick={() => { setShowLaunch(true); setStep(1) }}>
-            <Icon name="launch" size={15} /> Launch Scan
+            <Icon name="launch" size={15} /> Launch Security Scan
           </Button>
         }
       />
 
-      {/* Active scan highlight */}
-      <Card style={{ padding: '20px 24px', marginBottom: 20, borderColor: 'var(--accent-soft-strong)', background: 'var(--accent-soft)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 14 }}>
+      {/* Active scan highlight hero */}
+      <Card glow style={{ padding: '22px 26px', marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <StatusBadge status="running" />
             <div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{MOCK_SCAN.name}</div>
-              <div className="mono" style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>{MOCK_SCAN.id}</div>
+              <div style={{ fontSize: 16, fontWeight: 650, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>{MOCK_SCAN.name}</div>
+              <div className="mono" style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{MOCK_SCAN.id}</div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ textAlign: 'center' }}>
+          <div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ padding: '6px 14px', background: 'var(--bg-subtle)', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', textAlign: 'center' }}>
               <div className="num" style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)' }}>{MOCK_SCAN.progress}%</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Progress</div>
+              <div style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Progress</div>
             </div>
-            <div style={{ textAlign: 'center' }}>
+            <div style={{ padding: '6px 14px', background: 'var(--bg-subtle)', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', textAlign: 'center' }}>
               <div className="num" style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{MOCK_SCAN.endpointsTested}/{MOCK_SCAN.endpointsTotal}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Endpoints</div>
+              <div style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Endpoints</div>
             </div>
-            <div style={{ textAlign: 'center' }}>
+            <div style={{ padding: '6px 14px', background: 'var(--bg-subtle)', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', textAlign: 'center' }}>
               <div className="num" style={{ fontSize: 18, fontWeight: 700, color: 'var(--sev-critical)' }}>1</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Critical</div>
+              <div style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Critical</div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <Button variant="secondary" size="sm"><Icon name="pause" size={14} /> Pause</Button>
@@ -51,41 +51,60 @@ export default function Scans() {
             </div>
           </div>
         </div>
+
         {/* Mini progress bar */}
-        <div style={{ marginTop: 16, height: 4, background: 'var(--bg-surface)', borderRadius: 2, overflow: 'hidden' }}>
-          <div style={{ width: `${MOCK_SCAN.progress}%`, height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
+        <div style={{ marginTop: 18, height: 5, background: 'var(--bg-subtle)', borderRadius: 'var(--r-full)', overflow: 'hidden' }}>
+          <div style={{ width: `${MOCK_SCAN.progress}%`, height: '100%', background: 'var(--accent)', boxShadow: '0 0 10px var(--accent-glow)', borderRadius: 'var(--r-full)' }} />
         </div>
 
         {/* Agent pipeline mini */}
-        <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-          {MOCK_AGENTS.map(a => (
-            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <StatusDot status={a.status} pulse={a.status === 'active'} />
-              <span style={{ fontSize: 12, color: a.status === 'active' ? 'var(--accent)' : a.status === 'completed' ? 'var(--success)' : 'var(--text-muted)', fontWeight: a.status === 'active' ? 600 : 400 }}>{a.name}</span>
-            </div>
-          ))}
+        <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+          {MOCK_AGENTS.map(a => {
+            const isActive = a.status === 'active'
+            return (
+              <div key={a.id} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '4px 10px',
+                borderRadius: 'var(--r-full)',
+                background: isActive ? 'var(--accent-soft)' : 'var(--bg-subtle)',
+                border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+              }}>
+                <StatusDot status={a.status} pulse={isActive} />
+                <span style={{ fontSize: 11.5, color: isActive ? 'var(--accent)' : 'var(--text-secondary)', fontWeight: isActive ? 650 : 500 }}>
+                  {a.name}
+                </span>
+              </div>
+            )
+          })}
         </div>
       </Card>
 
       {/* Scan history table */}
       <Card>
         <div className="table-scroll">
-          <div style={{ minWidth: 900 }}>
-            <div className="table-head" style={{ gridTemplateColumns: '180px 1fr 140px 90px 90px 90px 90px 110px' }}>
-              <div>Scan ID</div><div>Target</div><div>Started</div><div>Endpoints</div><div>Findings</div><div>Critical</div><div>Val. Rate</div><div>Status</div>
+          <div style={{ minWidth: 920 }}>
+            <div className="table-head" style={{ gridTemplateColumns: '170px 1.4fr 140px 90px 90px 90px 100px 120px' }}>
+              <div>Scan ID</div>
+              <div>Target Specification</div>
+              <div>Timestamp</div>
+              <div>Endpoints</div>
+              <div>Findings</div>
+              <div>Critical</div>
+              <div>Validation</div>
+              <div>Execution State</div>
             </div>
             {MOCK_SCANS.map(s => (
-              <div key={s.id} className="table-row" style={{ gridTemplateColumns: '180px 1fr 140px 90px 90px 90px 90px 110px' }}>
-                <div className="mono" style={{ fontSize: 12, color: 'var(--text-muted)' }}>{s.id.replace('SCAN-', '')}</div>
+              <div key={s.id} className="table-row" style={{ gridTemplateColumns: '170px 1.4fr 140px 90px 90px 90px 100px 120px' }}>
+                <div className="mono" style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>{s.id.replace('SCAN-', '')}</div>
                 <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-primary)' }}>{s.name}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)' }}>{s.name}</div>
                   <div className="mono truncate" style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>{s.target}</div>
                 </div>
-                <div style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>{s.startedAt}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{s.startedAt}</div>
                 <div className="num" style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>{s.endpoints}</div>
                 <div className="num" style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>{s.findings}</div>
                 <div className="num" style={{ fontSize: 13, fontWeight: 700, color: s.critical > 0 ? 'var(--sev-critical)' : 'var(--text-muted)' }}>{s.critical}</div>
-                <div className="num" style={{ fontSize: 13, color: 'var(--success)', fontWeight: 600 }}>{s.validationRate}</div>
+                <div className="num" style={{ fontSize: 13, color: 'var(--success)', fontWeight: 650 }}>{s.validationRate}</div>
                 <div><StatusBadge status={s.status} /></div>
               </div>
             ))}
@@ -97,7 +116,7 @@ export default function Scans() {
       <Dialog
         open={showLaunch}
         onClose={() => setShowLaunch(false)}
-        title="Launch Scan"
+        title="Launch Autonomous Scan"
         subtitle={`Step ${step} of 3 · ${STEP_LABELS[step - 1]}`}
         footer={
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
@@ -105,66 +124,80 @@ export default function Scans() {
               {step > 1 ? 'Back' : 'Cancel'}
             </Button>
             <Button variant="primary" onClick={() => { if (step < 3) setStep(s => s + 1); else setShowLaunch(false); }}>
-              {step === 3 ? <><Icon name="launch" size={15} /> Start Scan</> : 'Continue'}
+              {step === 3 ? <><Icon name="launch" size={15} /> Start Security Audit</> : 'Continue'}
             </Button>
           </div>
         }
       >
-        {/* Step indicator */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 28 }}>
-          {[1, 2, 3].map(n => (
-            <div key={n} style={{ flex: 1, height: 3, borderRadius: 2, background: n <= step ? 'var(--accent)' : 'var(--border)', transition: 'background .2s' }} />
-          ))}
-        </div>
-
         {step === 1 && (
           <div>
-            <div style={{ marginBottom: 20 }}>
-              <label htmlFor="target-url" style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8 }}>Target API URL</label>
-              <input
-                id="target-url"
-                className="input mono"
-                value={targetUrl}
-                onChange={e => setTargetUrl(e.target.value)}
-                placeholder="https://api.example.local"
-              />
-            </div>
+            <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', marginBottom: 18, lineHeight: 1.6 }}>
+              Enter the target base URL. Ronin will initiate automated discovery, attack surface mapping, and vulnerability assessment.
+            </p>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, letterSpacing: '0.4px', textTransform: 'uppercase' }}>
+              Target API Base URL
+            </label>
+            <input
+              className="input mono"
+              value={targetUrl}
+              onChange={e => setTargetUrl(e.target.value)}
+              placeholder="https://api.vulnerable.local"
+              autoFocus
+            />
           </div>
         )}
+
         {step === 2 && (
           <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 14 }}>Input mode</div>
-            {[
-              { id: 'discovery', label: 'Base URL discovery', desc: 'Crawl and fingerprint the API from the root URL.' },
-              { id: 'openapi',   label: 'OpenAPI specification', desc: 'Import a .json or .yaml spec file.' },
-              { id: 'postman',   label: 'Postman collection', desc: 'Import a Postman v2.1 collection.' },
-              { id: 'list',      label: 'Endpoint list', desc: 'Provide a plain text list of paths.' },
-            ].map(opt => (
-              <label key={opt.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 14px', marginBottom: 6, borderRadius: 'var(--r-sm)', border: `1px solid ${inputMode === opt.id ? 'var(--accent)' : 'var(--border)'}`, background: inputMode === opt.id ? 'var(--accent-soft)' : 'var(--bg-surface)', cursor: 'pointer', transition: 'all .15s' }}>
-                <input type="radio" name="mode" value={opt.id} checked={inputMode === opt.id} onChange={() => setInputMode(opt.id)} style={{ marginTop: 3, accentColor: 'var(--accent)' }} />
-                <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2 }}>{opt.label}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{opt.desc}</div>
-                </div>
-              </label>
-            ))}
+            <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', marginBottom: 18 }}>
+              Select how Ronin's Recon Agent should ingest the target attack surface:
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[
+                { id: 'discovery', label: 'Automated Crawl & Spec Discovery', desc: 'Auto-probes for OpenAPI, Swagger, and exposed REST endpoints.' },
+                { id: 'openapi',   label: 'Import OpenAPI / Swagger Spec',   desc: 'Upload or supply a direct URI to an OpenAPI v3/v2 JSON document.' },
+                { id: 'postman',   label: 'Postman Collection',               desc: 'Import endpoints from an exported v2.1 Postman collection.' },
+              ].map(opt => {
+                const isSelected = inputMode === opt.id
+                return (
+                  <label
+                    key={opt.id}
+                    onClick={() => setInputMode(opt.id)}
+                    style={{
+                      display: 'flex', gap: 12, padding: '14px 16px',
+                      background: isSelected ? 'var(--accent-soft)' : 'var(--bg-subtle)',
+                      border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
+                      borderRadius: 'var(--r-md)', cursor: 'pointer', transition: 'all 0.15s',
+                    }}
+                  >
+                    <input type="radio" name="inputMode" checked={isSelected} onChange={() => {}} style={{ accentColor: 'var(--accent)', marginTop: 3 }} />
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 650, color: 'var(--text-primary)', marginBottom: 3 }}>{opt.label}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{opt.desc}</div>
+                    </div>
+                  </label>
+                )
+              })}
+            </div>
           </div>
         )}
+
         {step === 3 && (
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 14 }}>Review</div>
-            <div style={{ background: 'var(--bg-subtle)', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', overflow: 'hidden' }}>
-              {[
-                { label: 'Target',     value: targetUrl || 'https://api.example.local' },
-                { label: 'Input Mode', value: inputMode },
-                { label: 'Scope',      value: '38 endpoints expected' },
-              ].map(({ label, value }, i) => (
-                <div key={label} style={{ display: 'flex', padding: '13px 18px', borderBottom: i < 2 ? '1px solid var(--border)' : 'none' }}>
-                  <div style={{ width: 100, fontSize: 12.5, color: 'var(--text-muted)', fontWeight: 500 }}>{label}</div>
-                  <div className="mono" style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{value}</div>
-                </div>
-              ))}
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', marginBottom: 6 }}>
+              Review your scan parameters before launching the LangGraph multi-agent pipeline:
+            </p>
+            {[
+              { label: 'Target URL',   value: targetUrl || 'https://api.vulnerable.local', mono: true },
+              { label: 'Ingest Mode',  value: inputMode.toUpperCase() },
+              { label: 'Model Engine', value: 'qwen/qwen3.8-27b:free (Cloud Inference)' },
+              { label: 'Safety Scope', value: 'BOLA, Auth Bypass, Mass Assignment, SQLi, XSS' },
+            ].map(({ label, value, mono }) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-subtle)', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{label}</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', fontFamily: mono ? 'var(--font-mono)' : undefined }}>{value}</span>
+              </div>
+            ))}
           </div>
         )}
       </Dialog>

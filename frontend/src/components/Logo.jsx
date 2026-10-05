@@ -1,5 +1,5 @@
 // Ronin brand mark — Autonomous Security Samurai Emblem
-export function LogoMark({ size = 26, color = 'var(--accent-cyan, #2dd4bf)', title, style, className }) {
+export function LogoMark({ size = 26, color = 'var(--accent, #64d7b0)', title, style, className }) {
   return (
     <svg
       width={size}
@@ -17,7 +17,7 @@ export function LogoMark({ size = 26, color = 'var(--accent-cyan, #2dd4bf)', tit
   );
 }
 
-export function Logo({ size = 28, subtitle, showWordmark = true, color = 'var(--accent-cyan, #2dd4bf)' }) {
+export function Logo({ size = 28, subtitle, showWordmark = true, color = 'var(--accent, #64d7b0)' }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
       <LogoMark size={size} color={color} title={showWordmark ? undefined : 'Ronin'} />

@@ -30,7 +30,7 @@ function DashboardShell({ user, onSignOut }) {
   } : MOCK_USER
 
   return (
-    <div style={{ minHeight: '100svh', background: 'var(--bg-canvas)' }}>
+    <div className="app-shell">
       <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
       <Topbar
         user={displayUser}
@@ -41,11 +41,8 @@ function DashboardShell({ user, onSignOut }) {
         onToggleTheme={onToggleTheme}
       />
 
-      <main className="app-main" style={{
-        paddingTop: 'var(--topbar-h)',
-        minHeight: '100svh',
-      }}>
-        <div className="app-content" style={{ padding: '32px 32px', maxWidth: 1400 }}>
+      <main className="app-main">
+        <div className="app-content">
           <Routes>
             <Route path="/"                    element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard"           element={<Overview />} />

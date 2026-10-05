@@ -25,6 +25,12 @@ dist/
 build/
 coverage/
 out/
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+.pytest_cache/
 
 # Temporary files
 tmp/

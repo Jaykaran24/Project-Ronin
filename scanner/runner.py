@@ -24,22 +24,25 @@ app     = typer.Typer(help="Ronin AI Scanner — Phase 1")
 console = Console()
 
 
-def run_scan(target: str, model: str = "qwen2.5-coder:7b") -> ScanState:
+def run_scan(target: str, model: str | None = None, provider: str | None = None) -> ScanState:
     """Execute a full scan and return the final state."""
 
-    config = ScanConfig(
-        target_url=target,
-        target_name=target,
-        llm_model=model,
-    )
+    config_kwargs = {"target_url": target, "target_name": target}
+    if model:
+        config_kwargs["llm_model"] = model
+    if provider:
+        config_kwargs["llm_provider"] = provider
+
+    config = ScanConfig(**config_kwargs)
     state = ScanState(config=config)
     initial = state.model_dump()
 
     console.print(Panel(
         f"[bold cyan]RONIN[/] Autonomous API Scanner\n"
-        f"[dim]Target:[/] {target}\n"
-        f"[dim]Model:[/]  {model}\n"
-        f"[dim]Scan ID:[/] {state.scan_id}",
+        f"[dim]Target:[/]   {target}\n"
+        f"[dim]Provider:[/] {config.llm_provider}\n"
+        f"[dim]Model:[/]    {config.llm_model}\n"
+        f"[dim]Scan ID:[/]  {state.scan_id}",
         border_style="cyan",
     ))
 
@@ -109,11 +112,12 @@ def print_report(final: ScanState) -> None:
 
 @app.command()
 def scan(
-    target: str = typer.Argument(..., help="Target base URL e.g. http://localhost:5000"),
-    model:  str = typer.Option("qwen2.5-coder:7b", "--model", "-m", help="Ollama model to use"),
+    target:   str = typer.Argument(..., help="Target base URL e.g. http://localhost:5000"),
+    provider: str = typer.Option(None, "--provider", "-p", help="LLM provider: openrouter | groq | ollama"),
+    model:    str = typer.Option(None, "--model", "-m", help="Model identifier to use"),
 ):
     """Run a full Ronin scan against a target API."""
-    final = run_scan(target, model)
+    final = run_scan(target, model=model, provider=provider)
     print_report(final)
 
 

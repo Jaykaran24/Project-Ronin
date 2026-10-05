@@ -145,7 +145,10 @@ class ScanConfig(BaseModel):
     max_requests:     int = 1000
     request_delay_ms: int = 300     # polite delay between requests
     confidence_threshold: int = 65  # min confidence to flag a suspected vuln
-    llm_model:        str = "qwen2.5-coder:7b"
+    llm_provider:     str = "openrouter"  # "openrouter" | "groq" | "ollama" | "openai"
+    llm_model:        str = "nvidia/nemotron-3.5-lightning:free"
+    llm_api_key:      str | None = None
+    llm_base_url:     str | None = None
     ollama_url:       str = "http://localhost:11434"
 
 

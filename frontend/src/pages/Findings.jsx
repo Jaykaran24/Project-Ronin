@@ -1,92 +1,243 @@
 import { useState } from 'react'
-import { Card, Icon, SeverityBadge, MethodBadge, PageHeader, SearchInput, Segmented, Drawer } from '../components/ui.jsx'
+import { Card, Icon, SeverityBadge, MethodBadge, PageHeader, SearchInput, Segmented, Drawer, Button } from '../components/ui.jsx'
 import { MOCK_FINDINGS } from '../data/mock.js'
 
 function FindingDrawer({ finding, onClose }) {
-  const [copied, setCopied] = useState(false)
+  const [copiedType, setCopiedType] = useState(null)
+  const [activeTab, setActiveTab] = useState('narrative') // narrative | http | poc | remediation
+  const [showCvssBreakdown, setShowCvssBreakdown] = useState(false)
+
   if (!finding) return null
 
-  const copy = () => {
-    navigator.clipboard.writeText(finding.poc)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  const copyToClipboard = (text, type) => {
+    navigator.clipboard.writeText(text)
+    setCopiedType(type)
+    setTimeout(() => setCopiedType(null), 2000)
+  }
+
+  const exportMarkdownIssue = () => {
+    const md = `## [${finding.severity.toUpperCase()}] ${finding.title}
+**OWASP Category:** ${finding.owasp}
+**Endpoint:** \`${finding.method} ${finding.endpoint}\`
+**CVSS v3.1:** ${finding.cvss} (\`${finding.cvssVector || 'N/A'}\`)
+
+### Vulnerability Narrative
+${finding.narrative || finding.description}
+
+### Reproduction (cURL)
+\`\`\`bash
+${finding.poc}
+\`\`\`
+
+### Remediation Recommendation
+${finding.remediation}
+`
+    copyToClipboard(md, 'issue')
   }
 
   return (
-    <Drawer open={!!finding} onClose={onClose} labelledBy="finding-title">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+    <Drawer open={!!finding} onClose={onClose} labelledBy="finding-title" width="min(680px, 94vw)">
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
-          <SeverityBadge level={finding.severity} />
-          <h2 id="finding-title" style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-primary)', margin: '10px 0 4px', letterSpacing: -0.3 }}>{finding.title}</h2>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{finding.owasp} · {finding.id}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <SeverityBadge level={finding.severity} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', background: 'var(--success-soft)', padding: '2px 8px', borderRadius: 'var(--r-full)', border: '1px solid rgba(34,197,94,0.3)' }}>
+              100% Sandbox Verified
+            </span>
+          </div>
+          <h2 id="finding-title" style={{ fontSize: 22, fontWeight: 650, color: 'var(--text-primary)', margin: '4px 0', letterSpacing: '-0.4px' }}>
+            {finding.title}
+          </h2>
+          <div className="mono" style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            {finding.owasp} · <span style={{ color: 'var(--accent)' }}>{finding.id}</span> · Discovered {finding.discoveredAt}
+          </div>
         </div>
-        <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}>
-          <Icon name="close" size={20} />
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          style={{
+            background: 'var(--bg-subtle)', border: '1px solid var(--border)',
+            borderRadius: 'var(--r-sm)', color: 'var(--text-muted)',
+            cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <Icon name="close" size={16} />
         </button>
       </div>
 
-      {[
-        { label: 'Summary', content: <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-secondary)' }}>{finding.description}</p> },
-        { label: 'Affected Endpoint', content: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--bg-subtle)', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)' }}>
-            <MethodBadge method={finding.method} />
-            <span className="mono" style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{finding.endpoint}</span>
+      {/* Target Endpoint & CVSS Strip */}
+      <div style={{ padding: '12px 16px', background: 'var(--bg-subtle)', borderRadius: 'var(--r-md)', border: '1px solid var(--border)', marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <MethodBadge method={finding.method} />
+          <span className="mono" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{finding.endpoint}</span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+            <span className="num" style={{ fontSize: 18, fontWeight: 750, color: `var(--sev-${finding.severity})` }}>{finding.cvss}</span>
+            <span style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 600 }}>CVSS v3.1</span>
           </div>
-        )},
-        { label: 'CVSS Score', content: (
-          <div style={{ display: 'flex', gap: 24 }}>
-            <div><div className="num" style={{ fontSize: 28, fontWeight: 700, color: `var(--sev-${finding.severity})` }}>{finding.cvss}</div><div style={{ fontSize: 11, color: 'var(--text-muted)' }}>CVSS v3.1</div></div>
-            <div style={{ alignSelf: 'center' }}><SeverityBadge level={finding.severity} /></div>
+          <button
+            onClick={() => setShowCvssBreakdown(!showCvssBreakdown)}
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-strong)', borderRadius: 'var(--r-sm)', padding: '3px 8px', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer' }}
+          >
+            {showCvssBreakdown ? 'Hide Vector ▲' : 'Vector Breakdown ▼'}
+          </button>
+        </div>
+      </div>
+
+      {/* Collapsible CVSS 3.1 Vector Breakdown */}
+      {showCvssBreakdown && (
+        <div style={{ padding: '14px 16px', background: 'var(--bg-canvas)', borderRadius: 'var(--r-md)', border: '1px solid var(--border-strong)', marginBottom: 20, animation: 'reveal 0.2s ease' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span className="section-label" style={{ marginBottom: 0 }}>CVSS v3.1 Vector String</span>
+            <span className="mono" style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 600 }}>{finding.cvssVector}</span>
           </div>
-        )},
-        { label: 'Proof of Concept', content: (
-          <div style={{ position: 'relative' }}>
-            <pre style={{
-              margin: 0, padding: '14px 16px',
-              background: 'var(--bg-subtle)', border: '1px solid var(--border)',
-              borderRadius: 'var(--r-sm)', fontFamily: 'var(--font-mono)',
-              fontSize: 12.5, lineHeight: 1.7, color: 'var(--text-secondary)',
-              overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
-            }}>
+          {finding.cvssMetrics && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
+              {Object.entries(finding.cvssMetrics).map(([k, v]) => (
+                <div key={k} style={{ padding: '6px 10px', background: 'var(--bg-subtle)', borderRadius: 'var(--r-xs)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>{k.toUpperCase()}</div>
+                  <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-primary)' }}>{v}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 6, borderBottom: '1px solid var(--border)', paddingBottom: 10, marginBottom: 18, overflowX: 'auto' }}>
+        {[
+          { id: 'narrative',   label: 'Attack Narrative' },
+          { id: 'http',        label: 'HTTP Request & Response' },
+          { id: 'poc',         label: 'PoC Scripts' },
+          { id: 'remediation', label: 'Remediation & Patch' },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className="chip accent"
+            aria-pressed={activeTab === tab.id}
+            style={{ fontSize: 11.5, padding: '4px 12px' }}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab 1: Attack Narrative */}
+      {activeTab === 'narrative' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ padding: '16px 18px', background: 'var(--bg-subtle)', borderRadius: 'var(--r-md)', border: '1px solid var(--border)' }}>
+            <div className="section-label" style={{ marginBottom: 8 }}>Vulnerability Summary</div>
+            <p style={{ fontSize: 13.5, lineHeight: 1.7, color: 'var(--text-secondary)' }}>{finding.description}</p>
+          </div>
+          <div style={{ padding: '16px 18px', background: 'var(--bg-subtle)', borderRadius: 'var(--r-md)', border: '1px solid var(--border)' }}>
+            <div className="section-label" style={{ marginBottom: 8 }}>AI Attack Narrative & Execution Analysis</div>
+            <p style={{ fontSize: 13.5, lineHeight: 1.7, color: 'var(--text-secondary)' }}>
+              {finding.narrative || 'The Exploit agent flagged unauthorized state transition when altering object identifiers.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 2: HTTP Raw Payloads */}
+      {activeTab === 'http' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span className="section-label" style={{ marginBottom: 0 }}>Attack Request Probe</span>
+              <button onClick={() => copyToClipboard(finding.rawRequest, 'req')} style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}>
+                {copiedType === 'req' ? '✓ Copied' : 'Copy Request'}
+              </button>
+            </div>
+            <pre className="mono" style={{ margin: 0, padding: '12px 14px', background: 'var(--bg-canvas)', border: '1px solid var(--border-strong)', borderRadius: 'var(--r-sm)', fontSize: 11.5, lineHeight: 1.6, color: 'var(--text-primary)', overflowX: 'auto' }}>
+              {finding.rawRequest}
+            </pre>
+          </div>
+
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span className="section-label" style={{ marginBottom: 0 }}>Vulnerable Server Response</span>
+              <button onClick={() => copyToClipboard(finding.rawResponse, 'res')} style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}>
+                {copiedType === 'res' ? '✓ Copied' : 'Copy Response'}
+              </button>
+            </div>
+            <pre className="mono" style={{ margin: 0, padding: '12px 14px', background: 'var(--bg-canvas)', border: '1px solid var(--border-strong)', borderRadius: 'var(--r-sm)', fontSize: 11.5, lineHeight: 1.6, color: 'var(--sev-critical)', overflowX: 'auto' }}>
+              {finding.rawResponse}
+            </pre>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 3: PoC Scripts */}
+      {activeTab === 'poc' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span className="section-label" style={{ marginBottom: 0 }}>cURL Exploit Vector</span>
+              <button onClick={() => copyToClipboard(finding.poc, 'poc')} style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}>
+                {copiedType === 'poc' ? '✓ Copied' : 'Copy cURL'}
+              </button>
+            </div>
+            <pre className="mono" style={{ margin: 0, padding: '12px 14px', background: 'var(--bg-canvas)', border: '1px solid var(--border-strong)', borderRadius: 'var(--r-sm)', fontSize: 11.5, lineHeight: 1.6, color: 'var(--text-primary)', overflowX: 'auto' }}>
               {finding.poc}
             </pre>
-            <button
-              onClick={copy}
-              aria-label="Copy proof of concept"
-              style={{
-                position: 'absolute', top: 10, right: 10,
-                background: copied ? 'var(--success)' : 'var(--bg-surface)',
-                border: '1px solid var(--border-strong)',
-                borderRadius: 'var(--r-sm)', color: copied ? '#fff' : 'var(--text-muted)',
-                padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: 5, transition: 'all .2s',
-              }}
-            >
-              <Icon name={copied ? 'check' : 'copy'} size={13} />
-              {copied ? 'Copied' : 'Copy'}
-            </button>
-            <span role="status" aria-live="polite" className="sr-only">{copied ? 'Proof of concept copied to clipboard' : ''}</span>
           </div>
-        )},
-        { label: 'Validation Status', content: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'var(--success-soft)', border: '1px solid rgba(6,118,71,.2)', borderRadius: 'var(--r-sm)' }}>
-            <Icon name="check" size={16} style={{ color: 'var(--success)' }} />
-            <span style={{ fontSize: 13, color: 'var(--success)', fontWeight: 500 }}>Verified in sandbox</span>
-          </div>
-        )},
-        { label: 'Remediation', content: <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-secondary)' }}>{finding.remediation}</p> },
-      ].map(({ label, content }) => (
-        <div key={label} style={{ marginBottom: 24 }}>
-          <div className="section-label" style={{ marginBottom: 10 }}>{label}</div>
-          {content}
+
+          {finding.pythonPoc && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <span className="section-label" style={{ marginBottom: 0 }}>Python PoC Script (Requests)</span>
+                <button onClick={() => copyToClipboard(finding.pythonPoc, 'pypoc')} style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}>
+                  {copiedType === 'pypoc' ? '✓ Copied' : 'Copy Python'}
+                </button>
+              </div>
+              <pre className="mono" style={{ margin: 0, padding: '12px 14px', background: 'var(--bg-canvas)', border: '1px solid var(--border-strong)', borderRadius: 'var(--r-sm)', fontSize: 11.5, lineHeight: 1.6, color: 'var(--text-primary)', overflowX: 'auto' }}>
+                {finding.pythonPoc}
+              </pre>
+            </div>
+          )}
         </div>
-      ))}
+      )}
+
+      {/* Tab 4: Remediation */}
+      {activeTab === 'remediation' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ padding: '16px 18px', background: 'var(--bg-subtle)', borderRadius: 'var(--r-md)', border: '1px solid var(--border)' }}>
+            <div className="section-label" style={{ marginBottom: 8 }}>Remediation Strategy</div>
+            <p style={{ fontSize: 13.5, lineHeight: 1.7, color: 'var(--text-secondary)' }}>{finding.remediation}</p>
+          </div>
+          {finding.remediationCode && (
+            <div>
+              <div className="section-label" style={{ marginBottom: 6 }}>Recommended Code Patch / Middleware</div>
+              <pre className="mono" style={{ margin: 0, padding: '12px 14px', background: 'var(--bg-canvas)', border: '1px solid var(--border-strong)', borderRadius: 'var(--r-sm)', fontSize: 11.5, lineHeight: 1.6, color: 'var(--success)', overflowX: 'auto' }}>
+                {finding.remediationCode}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Footer Issue Tracker Integration */}
+      <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+        <button
+          onClick={exportMarkdownIssue}
+          className="btn btn-secondary btn-sm"
+        >
+          <Icon name="copy" size={13} />
+          {copiedType === 'issue' ? 'Copied GitHub / Jira Markdown!' : 'Export to GitHub / Jira Issue'}
+        </button>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Verified by Ronin Exploit & Sandbox Agents</span>
+      </div>
     </Drawer>
   )
 }
 
 const SEVERITIES = [
-  { value: 'all', label: 'All' },
+  { value: 'all', label: 'All Severities' },
   { value: 'critical', label: 'Critical' },
   { value: 'high', label: 'High' },
   { value: 'medium', label: 'Medium' },
@@ -112,13 +263,13 @@ export default function Findings() {
   return (
     <div className="page">
       <PageHeader
-        title="Findings"
-        subtitle={`${total} verified vulnerabilities across ${[...new Set(MOCK_FINDINGS.map(f => f.scanId))].length} scan run${total !== 1 ? 's' : ''}.`}
+        title="Vulnerability Findings"
+        subtitle={`${total} verified findings across ${[...new Set(MOCK_FINDINGS.map(f => f.scanId))].length} security assessments.`}
       />
 
-      {/* Severity distribution */}
-      <Card style={{ padding: '18px 20px', marginBottom: 20 }}>
-        <div style={{ display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', marginBottom: 14, background: 'var(--bg-subtle)' }}>
+      {/* Severity distribution hero */}
+      <Card style={{ padding: '20px 22px', marginBottom: 20 }}>
+        <div style={{ display: 'flex', height: 8, borderRadius: 'var(--r-full)', overflow: 'hidden', marginBottom: 14, background: 'var(--bg-subtle)' }}>
           {['critical', 'high', 'medium', 'low'].map(s => (
             counts[s] > 0 && (
               <div key={s} style={{ width: `${(counts[s] / total) * 100}%`, background: `var(--sev-${s})` }} />
@@ -127,54 +278,62 @@ export default function Findings() {
         </div>
         <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
           {['critical', 'high', 'medium', 'low'].map(s => (
-            <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-              <span style={{ width: 8, height: 8, borderRadius: 2, background: `var(--sev-${s})`, flexShrink: 0 }} />
-              <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{s}</span>
-              <span className="num" style={{ fontSize: 12, fontWeight: 700, color: `var(--sev-${s})` }}>{counts[s]}</span>
+            <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: `var(--sev-${s})`, flexShrink: 0, boxShadow: `0 0 6px var(--sev-${s})` }} />
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'capitalize', fontWeight: 500 }}>{s}</span>
+              <span className="num" style={{ fontSize: 13, fontWeight: 700, color: `var(--sev-${s})` }}>{counts[s]}</span>
             </div>
           ))}
         </div>
       </Card>
 
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
-        <SearchInput value={search} onChange={e => setSearch(e.target.value)} placeholder="Search findings, endpoints, OWASP..." label="Search findings" />
+      {/* Search and Filters */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+        <SearchInput value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter by title, endpoint, or OWASP tag..." label="Search findings" />
         <Segmented options={SEVERITIES} value={sev} onChange={setSev} />
       </div>
 
       {/* Findings table */}
       <Card>
         <div className="table-scroll">
-          <div style={{ minWidth: 760 }}>
-            <div className="table-head" style={{ gridTemplateColumns: '110px 1fr 120px 1fr 70px 80px 90px' }}>
-              <div>Severity</div><div>Finding</div><div>Category</div><div>Endpoint</div><div>CVSS</div><div>Status</div><div />
+          <div style={{ minWidth: 840 }}>
+            <div className="table-head" style={{ gridTemplateColumns: '120px 1.4fr 110px 1.2fr 80px 100px 60px' }}>
+              <div>Severity</div>
+              <div>Finding Description</div>
+              <div>OWASP Category</div>
+              <div>Affected Endpoint</div>
+              <div>CVSS</div>
+              <div>Verification</div>
+              <div />
             </div>
             {filtered.length === 0 && (
-              <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>No findings match your filters.</div>
+              <div style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
+                No findings match your active filters.
+              </div>
             )}
             {filtered.map(f => (
               <button
                 key={f.id}
                 onClick={() => setSelected(f)}
                 className="table-row"
-                style={{ gridTemplateColumns: '110px 1fr 120px 1fr 70px 80px 90px' }}
+                style={{ gridTemplateColumns: '120px 1.4fr 110px 1.2fr 80px 100px 60px', padding: '14px 20px' }}
               >
                 <div><SeverityBadge level={f.severity} /></div>
-                <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-primary)' }}>{f.title}</div>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)' }}>{f.title}</div>
                 <div className="mono" style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{f.owasp}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
                   <MethodBadge method={f.method} />
-                  <span className="mono truncate" style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>{f.endpoint}</span>
+                  <span className="mono truncate" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{f.endpoint}</span>
                 </div>
-                <div className="num" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>{f.cvss}</div>
+                <div className="num" style={{ fontSize: 13, fontWeight: 700, color: `var(--sev-${f.severity})` }}>{f.cvss}</div>
                 <div>
                   <span style={{
-                    fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 'var(--r-full)',
-                    background: 'var(--success-soft)', color: 'var(--success)',
+                    fontSize: 11, fontWeight: 650, padding: '2px 8px', borderRadius: 'var(--r-full)',
+                    background: 'var(--success-soft)', color: 'var(--success)', border: '1px solid rgba(34, 197, 94, 0.24)'
                   }}>Verified</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <Icon name="chevronRight" size={15} style={{ color: 'var(--text-muted)' }} />
+                  <Icon name="chevronRight" size={16} style={{ color: 'var(--text-muted)' }} />
                 </div>
               </button>
             ))}

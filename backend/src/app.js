@@ -18,19 +18,44 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+];
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+
+  return allowedOrigins.includes(origin)
+    || /^https?:\/\/localhost:\d+$/.test(origin)
+    || /^https?:\/\/127\.0\.0\.1:\d+$/.test(origin)
+    || /^https?:\/\/.*\.devtunnels\.ms$/.test(origin);
+};
+
 // ── Security headers ─────────────────────────────────────────────────────────
 // Disable contentSecurityPolicy so Swagger UI loads its own inline scripts
 app.use(helmet({ contentSecurityPolicy: false }));
 
-// ── CORS — allow the Vite frontend origin ────────────────────────────────────
-app.use(
-  cors({
-    origin:         process.env.FRONTEND_URL || 'http://localhost:5173',
-    credentials:    true,
-    methods:        ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
+// ── CORS — allow the Vite frontend origins used for local and tunnel previews ────────────────────────────────────
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (isAllowedOrigin(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('Origin not allowed by CORS'));
+  },
+  credentials:    true,
+  methods:        ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // ── Request logging (dev only) ───────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'test') {
