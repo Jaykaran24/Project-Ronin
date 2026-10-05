@@ -39,3 +39,7 @@ temp/
 
 # Doc Files
 *.docx
+
+# Scan storage and reports
+storage/
+ronin_report_*.md

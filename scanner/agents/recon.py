@@ -15,8 +15,11 @@ from pydantic import BaseModel, Field
 from scanner.agents.base import BaseAgent
 from scanner.models.state import (
     ScanState, ScanPhase, AgentStatus,
-    Endpoint, Parameter, HttpMethod,
+    Endpoint, Parameter, HttpMethod, SuspectedVuln, VulnCategory, HttpEvidence,
 )
+from scanner.tools.crawler import crawl_page_and_scripts
+from scanner.tools.headers import audit_security_headers
+
 
 
 # ── Structured output: LLM enriches raw endpoints ─────────────────────────────
@@ -30,6 +33,11 @@ class EndpointAnalysis(BaseModel):
         description="List of likely OWASP API vulnerabilities e.g. ['BOLA', 'broken_auth']"
     )
     reasoning:      str  = Field(description="One sentence explaining risk assessment")
+
+
+class BatchEndpointAnalysis(BaseModel):
+    """Batch assessment of multiple discovered endpoints."""
+    endpoints: list[EndpointAnalysis] = Field(default=[], description="Assessment for each input endpoint")
 
 
 class ReconSummary(BaseModel):
@@ -68,6 +76,9 @@ class ReconAgent(BaseAgent):
         raw_endpoints = self._discover_endpoints(state)
         self.log(state, "recon", f"Discovered {len(raw_endpoints)} raw endpoints")
 
+        # ── Step 2: Audit Security Headers & CORS ─────────────────────────────
+        self._audit_headers(state)
+
         if not raw_endpoints:
             self.log(state, "recon", "No endpoints found. Target may be unreachable.", level="warn")
             state.agents["recon"].status = AgentStatus.DONE
@@ -75,12 +86,12 @@ class ReconAgent(BaseAgent):
             state.phase = ScanPhase.RECON
             return state.model_dump()
 
-        # ── Step 2: LLM enrichment — risk scoring + vuln prediction ───────────
+        # ── Step 3: LLM enrichment — risk scoring + vuln prediction ───────────
         enriched = self._enrich_with_llm(state, raw_endpoints)
         state.endpoints = enriched
         self.log(state, "recon", f"LLM enriched {len(enriched)} endpoints")
 
-        state.progress = 15
+        state.progress = 20
         state.phase = ScanPhase.RECON
         state.agents["recon"].status = AgentStatus.DONE
         state.agents["recon"].finished_at = datetime.utcnow().isoformat()
@@ -90,49 +101,104 @@ class ReconAgent(BaseAgent):
 
     # ── Discovery methods ─────────────────────────────────────────────────────
 
+    def _audit_headers(self, state: ScanState) -> None:
+        """Run security headers and CORS audit against target URL."""
+        base_url = state.config.target_url.rstrip("/")
+        try:
+            issues = audit_security_headers(base_url)
+            for iss in issues:
+                cat_map = {
+                    "security_misconfig": VulnCategory.SECURITY_MISCONFIG,
+                    "info_disclosure": VulnCategory.INFO_DISCLOSURE,
+                }
+                category = cat_map.get(iss.get("category", ""), VulnCategory.SECURITY_MISCONFIG)
+                suspect = SuspectedVuln(
+                    endpoint_id="root",
+                    category=category,
+                    description=f"{iss['title']}: {iss['description']}",
+                    confidence=95,
+                    evidence=HttpEvidence(
+                        method="GET",
+                        url=base_url,
+                        response_body=iss.get("remediation", ""),
+                    )
+                )
+                state.suspected_vulns.append(suspect)
+                self.log(state, "recon", f"Detected {iss['title']} ({iss['severity']})", level="warn")
+        except Exception as e:
+            self.log(state, "recon", f"Security header audit error: {e}", level="warn")
+
     def _discover_endpoints(self, state: ScanState) -> list[dict]:
         """
-        Try multiple discovery strategies, return raw endpoint dicts.
-        Phase 1: Swagger/OpenAPI only. Phases 2+ add crawling, GraphQL, etc.
+        Combine multiple discovery strategies:
+        1. OpenAPI / Swagger specs
+        2. HTML & JavaScript client bundle crawling
+        3. Common API path probes
         """
         base_url = state.config.target_url.rstrip("/")
-        endpoints: list[dict] = []
+        discovered: dict[tuple[str, str], dict] = {}
 
         # Strategy 1: Swagger / OpenAPI spec
         swagger = self._try_swagger(base_url, state)
         if swagger:
-            endpoints.extend(swagger)
+            for ep in swagger:
+                key = (ep.get("method", "GET").upper(), ep.get("path", ""))
+                discovered[key] = ep
             self.log(state, "recon", f"Found {len(swagger)} endpoints via OpenAPI spec")
-            return endpoints
 
-        # Strategy 2: Common endpoint patterns (fallback)
-        self.log(state, "recon", "No OpenAPI spec found — using common path patterns", level="warn")
-        endpoints = self._common_paths(base_url)
+        # Strategy 2: Web & Script Crawler
+        try:
+            crawled = crawl_page_and_scripts(base_url)
+            crawled_count = 0
+            for ep in crawled:
+                key = (ep.get("method", "GET").upper(), ep.get("path", ""))
+                if key not in discovered:
+                    discovered[key] = ep
+                    crawled_count += 1
+            if crawled_count > 0:
+                self.log(state, "recon", f"Discovered {crawled_count} additional endpoints via JS/HTML crawl")
+        except Exception as e:
+            self.log(state, "recon", f"Crawler notice: {e}", level="warn")
 
-        return endpoints
+        # Strategy 3: Common endpoint patterns (if fewer than 5 endpoints discovered)
+        if len(discovered) < 5:
+            self.log(state, "recon", "Probing common API path patterns...", level="info")
+            common = self._common_paths(base_url)
+            for ep in common:
+                key = (ep.get("method", "GET").upper(), ep.get("path", ""))
+                if key not in discovered:
+                    discovered[key] = ep
+
+        return list(discovered.values())
+
 
     def _try_swagger(self, base_url: str, state: ScanState) -> list[dict] | None:
         """Try common OpenAPI/Swagger spec paths."""
         import httpx
 
         swagger_paths = [
-            "/openapi.json", "/openapi.yaml",
+            "/api/docs.json", "/openapi.json", "/openapi.yaml",
             "/swagger.json", "/swagger.yaml",
             "/api/openapi.json", "/api/swagger.json",
-            "/api-docs", "/api-docs.json",
+            "/api/docs", "/api-docs", "/api-docs.json",
             "/v1/openapi.json", "/v2/openapi.json", "/v3/openapi.json",
-            "/docs/openapi.json",
+            "/docs/openapi.json", "/docs",
         ]
 
         for path in swagger_paths:
             url = f"{base_url}{path}"
             try:
-                resp = httpx.get(url, timeout=5, follow_redirects=True, verify=False)
+                resp = httpx.get(url, timeout=3, follow_redirects=True, verify=False)
                 if resp.status_code == 200 and ("paths" in resp.text or "swagger" in resp.text.lower()):
                     self.log(state, "recon", f"Found OpenAPI spec at {url}")
-                    return self._parse_openapi(resp.json() if "json" in path else {}, base_url)
+                    try:
+                        spec_json = resp.json()
+                    except Exception:
+                        spec_json = {}
+                    return self._parse_openapi(spec_json, base_url)
             except Exception:
                 continue
+
 
         return None
 
@@ -208,49 +274,61 @@ class ReconAgent(BaseAgent):
     # ── LLM enrichment ────────────────────────────────────────────────────────
 
     def _enrich_with_llm(self, state: ScanState, raw: list[dict]) -> list[Endpoint]:
-        """Ask the LLM to risk-score and categorize each endpoint."""
+        """Ask the LLM to risk-score and categorize endpoints in a single batch pass."""
         enriched: list[Endpoint] = []
+        if not raw:
+            return enriched
+
+        # Format concise list for the LLM
+        compact_list = [
+            {"method": ep["method"], "path": ep["path"], "tags": ep.get("tags", [])}
+            for ep in raw
+        ]
+
+        analysis_map: dict[str, EndpointAnalysis] = {}
+        try:
+            batch = self.ask_structured(
+                system=SYSTEM_PROMPT,
+                user=f"Analyse and risk-score these discovered API endpoints:\n{json.dumps(compact_list, indent=2)}",
+                schema=BatchEndpointAnalysis,
+            )
+            for item in batch.endpoints:
+                analysis_map[item.endpoint_path] = item
+            self.log(state, "recon", f"LLM batch-assessed {len(batch.endpoints)} endpoints")
+        except Exception as e:
+            self.log(state, "recon", f"LLM batch enrichment notice (using heuristic assessment): {e}", level="info")
 
         for raw_ep in raw:
-            try:
-                analysis = self.ask_structured(
-                    system=SYSTEM_PROMPT,
-                    user=f"""Analyse this API endpoint:
-Method: {raw_ep['method']}
-Path: {raw_ep['path']}
-Parameters: {json.dumps(raw_ep.get('parameters', []))}
-Tags: {raw_ep.get('tags', [])}
+            path = raw_ep["path"]
+            analysis = analysis_map.get(path)
 
-Provide a risk assessment.""",
-                    schema=EndpointAnalysis,
-                )
+            if analysis:
+                auth_req = analysis.auth_required
+                score = analysis.risk_score
+                extra_tags = analysis.likely_vulns
+            else:
+                # Intelligent heuristic fallback
+                is_auth_route = any(k in path.lower() for k in ["login", "signup", "auth", "token", "register"])
+                is_admin_route = "admin" in path.lower()
+                is_id_route = any(k in path for k in ["{id}", ":id"]) or any(seg.isdigit() for seg in path.split("/"))
 
-                ep = Endpoint(
-                    method=HttpMethod(raw_ep["method"]),
-                    path=raw_ep["path"],
-                    full_url=raw_ep["full_url"],
-                    parameters=[
-                        Parameter(**p) for p in raw_ep.get("parameters", [])
-                    ],
-                    auth_required=analysis.auth_required,
-                    tags=raw_ep.get("tags", []) + analysis.likely_vulns,
-                    risk_score=analysis.risk_score,
-                )
-                enriched.append(ep)
+                auth_req = is_admin_route or is_id_route
+                score = 8 if is_admin_route else (7 if is_id_route else (6 if is_auth_route else 4))
+                extra_tags = ["admin"] if is_admin_route else (["BOLA"] if is_id_route else (["auth"] if is_auth_route else []))
 
-            except Exception as e:
-                # On LLM failure, add endpoint with default risk score
-                ep = Endpoint(
-                    method=HttpMethod(raw_ep["method"]),
-                    path=raw_ep["path"],
-                    full_url=raw_ep["full_url"],
-                    parameters=[Parameter(**p) for p in raw_ep.get("parameters", [])],
-                    risk_score=5,
-                )
-                enriched.append(ep)
-                self.log(state, "recon", f"LLM enrichment failed for {raw_ep['path']}: {e}", level="warn")
+            ep = Endpoint(
+                method=HttpMethod(raw_ep["method"]),
+                path=raw_ep["path"],
+                full_url=raw_ep["full_url"],
+                parameters=[Parameter(**p) for p in raw_ep.get("parameters", [])],
+                auth_required=auth_req,
+                tags=list(set(raw_ep.get("tags", []) + extra_tags)),
+                risk_score=score,
+            )
+            enriched.append(ep)
 
         return enriched
+
 
 
 # ── LangGraph node wrapper ────────────────────────────────────────────────────

@@ -87,11 +87,15 @@ class BaseAgent:
             url = base_url or os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
             m = os.getenv("LLM_MODEL", model)
             self.llm = ChatOpenAI(
+
                 model=m,
                 api_key=key,
                 base_url=url,
                 temperature=0.1,
+                timeout=5.0,
+                max_retries=0,
             )
+
 
     # ── LLM helpers ──────────────────────────────────────────────────────────
 
@@ -104,30 +108,56 @@ class BaseAgent:
     def ask_structured(self, system: str, user: str, schema: Type[T]) -> T:
         """
         Structured output call — LLM must respond with valid JSON
-        matching the Pydantic schema. Retries once on parse failure.
+        matching the Pydantic schema.
+        Uses direct JSON chat completion with schema validation and daemon thread timeout.
         """
-        structured_llm = self.llm.with_structured_output(schema)
-        messages = [SystemMessage(content=system), HumanMessage(content=user)]
+        schema_json = json.dumps(schema.model_json_schema(), indent=2)
+        sys_prompt = (
+            f"{system}\n\n"
+            f"You must respond ONLY with valid JSON matching this schema:\n{schema_json}\n"
+            "Return valid JSON only, without explanations or commentary."
+        )
+
+        import threading
+        import queue
+
+        messages = [SystemMessage(content=sys_prompt), HumanMessage(content=user)]
+        q: queue.Queue = queue.Queue()
+
+        def _call_llm():
+            try:
+                res = self.llm.invoke(messages)
+                q.put((True, res))
+            except Exception as ex:
+                q.put((False, ex))
+
+        worker_thread = threading.Thread(target=_call_llm, daemon=True)
+        worker_thread.start()
 
         try:
-            result = structured_llm.invoke(messages)
-            return result
-        except Exception as first_error:
-            # Retry once with an explicit reminder
-            retry_user = (
-                f"{user}\n\n"
-                f"IMPORTANT: You MUST respond with valid JSON matching this schema exactly:\n"
-                f"{json.dumps(schema.model_json_schema(), indent=2)}"
-            )
-            try:
-                result = structured_llm.invoke(
-                    [SystemMessage(content=system), HumanMessage(content=retry_user)]
-                )
-                return result
-            except Exception:
-                raise RuntimeError(
-                    f"[{self.name}] Structured output failed after retry: {first_error}"
-                )
+            success, result = q.get(timeout=5.5)
+            if not success:
+                raise result
+            resp = result
+
+            content = resp.content.strip()
+            # Extract JSON block if wrapped in markdown fences
+            match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
+            if match:
+                content = match.group(1)
+            else:
+                first_brace = content.find('{')
+                last_brace = content.rfind('}')
+                if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
+                    content = content[first_brace:last_brace+1]
+
+            return schema.model_validate_json(content)
+        except Exception as e:
+            raise RuntimeError(f"[{self.name}] Structured output failed: {e}")
+
+
+
+
 
     # ── State helpers ─────────────────────────────────────────────────────────
 
@@ -145,7 +175,12 @@ class BaseAgent:
             "message":   message,
             "level":     level,
         })
-        print(f"[{agent.upper()}] {message}")
+        try:
+            print(f"[{agent.upper()}] {message}", flush=True)
+        except Exception:
+            safe = message.encode("ascii", "replace").decode("ascii")
+            print(f"[{agent.upper()}] {safe}", flush=True)
+
 
     @staticmethod
     def emit(state: ScanState) -> dict:

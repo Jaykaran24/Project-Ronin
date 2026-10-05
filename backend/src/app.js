@@ -13,8 +13,12 @@ const rateLimit    = require('express-rate-limit');
 const swaggerUi    = require('swagger-ui-express');
 const swaggerSpec  = require('./config/swagger');
 
-const authRoutes   = require('./routes/authRoutes');
-const errorHandler = require('./middleware/errorHandler');
+const authRoutes     = require('./routes/authRoutes');
+const scanRoutes     = require('./routes/scanRoutes');
+const findingRoutes  = require('./routes/findingRoutes');
+const endpointRoutes = require('./routes/endpointRoutes');
+const sandboxRoutes  = require('./routes/sandboxRoutes');
+const errorHandler   = require('./middleware/errorHandler');
 
 const app = express();
 
@@ -92,7 +96,11 @@ app.get('/api/docs.json', (req, res) => {
 });
 
 // ── API Routes ────────────────────────────────────────────────────────────────
-app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth',      authLimiter, authRoutes);
+app.use('/api/scans',     scanRoutes);
+app.use('/api/findings',  findingRoutes);
+app.use('/api/endpoints', endpointRoutes);
+app.use('/api/sandbox',   sandboxRoutes);
 
 // ── Health check ─────────────────────────────────────────────────────────────
 /**

@@ -77,10 +77,18 @@ class OrchestratorAgent(BaseAgent):
                     user=context,
                     schema=OrchestratorDecision,
                 )
-                self.log(state, "orchestrator", f"LLM decision → {decision.next_agent}: {decision.reasoning}")
+                self.log(state, "orchestrator", f"LLM decision -> {decision.next_agent}: {decision.reasoning}")
             except Exception as e:
-                self.log(state, "orchestrator", f"LLM error, defaulting to recon: {e}", level="warn")
-                decision = OrchestratorDecision(next_agent="recon", reasoning="LLM unavailable, defaulting")
+                self.log(state, "orchestrator", f"LLM error, using contextual fallback: {e}", level="warn")
+                if state.endpoints_queue:
+                    fallback_agent = "exploit"
+                elif state.suspected_vulns:
+                    fallback_agent = "validate"
+                elif state.endpoints:
+                    fallback_agent = "report"
+                else:
+                    fallback_agent = "recon"
+                decision = OrchestratorDecision(next_agent=fallback_agent, reasoning="Contextual fallback applied")
 
         # ── Apply decision to state ────────────────────────────────────────────
         state.next_agent = decision.next_agent
@@ -137,6 +145,13 @@ class OrchestratorAgent(BaseAgent):
                 reasoning="Recon found no endpoints. Generating empty report."
             )
 
+        # Exploit in progress and endpoints remain in queue → continue exploit
+        if state.phase == ScanPhase.EXPLOIT and state.endpoints_queue:
+            return OrchestratorDecision(
+                next_agent="exploit",
+                reasoning=f"{len(state.endpoints_queue)} endpoints remaining in exploit queue."
+            )
+
         # Queue exhausted, suspects exist → validate
         if not state.endpoints_queue and state.suspected_vulns:
             unvalidated = [s for s in state.suspected_vulns if s.confidence > 0]
@@ -160,6 +175,7 @@ class OrchestratorAgent(BaseAgent):
             return OrchestratorDecision(next_agent="done", reasoning="Scan complete.")
 
         return None  # Let the LLM decide
+
 
     def _build_context(self, state: ScanState) -> str:
         """Build a compact context summary for the LLM."""

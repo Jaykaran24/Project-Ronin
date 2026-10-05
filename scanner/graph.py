@@ -12,7 +12,10 @@ from langgraph.graph import StateGraph, END
 
 from scanner.agents.orchestrator import orchestrator_node
 from scanner.agents.recon        import recon_node
+from scanner.agents.exploit      import exploit_node
+from scanner.agents.validate     import validate_node
 from scanner.models.state        import ScanPhase
+
 
 
 # ── Router: reads next_agent from state, returns edge label ──────────────────
@@ -36,39 +39,7 @@ def route_after_recon(state: dict) -> Literal["orchestrator"]:
     return "orchestrator"
 
 
-# ── Stub nodes for Phase 1 (replaced in Phase 3 / 4 / 5) ────────────────────
-
-def exploit_node(state: dict) -> dict:
-    """Phase 1 stub — prints a placeholder. Replaced in Phase 3."""
-    from scanner.models.state import ScanState, ScanPhase, AgentStatus
-    from datetime import datetime
-    s = ScanState(**state)
-    s.agents["exploit"].status = AgentStatus.ACTIVE
-    print("[EXPLOIT] Stub — Phase 3 will implement this.")
-
-    # Pop one endpoint off the queue to make progress
-    if s.endpoints_queue:
-        ep_id = s.endpoints_queue.pop(0)
-        for ep in s.endpoints:
-            if ep.id == ep_id:
-                ep.tested = True
-                break
-        s.progress = min(90, s.progress + int(60 / max(len(s.endpoints), 1)))
-
-    s.agents["exploit"].status = AgentStatus.DONE
-    s.agents["exploit"].finished_at = datetime.utcnow().isoformat()
-    return s.model_dump()
-
-
-def validate_node(state: dict) -> dict:
-    """Phase 1 stub — replaced in Phase 4."""
-    from scanner.models.state import ScanState, AgentStatus
-    from datetime import datetime
-    s = ScanState(**state)
-    print("[VALIDATE] Stub — Phase 4 will implement this.")
-    s.agents["validate"].status = AgentStatus.DONE
-    s.suspected_vulns.clear()   # clear suspects so orchestrator moves to report
-    return s.model_dump()
+# ── Report Node ─────────────────────────────────────────────────────────────
 
 
 def report_node(state: dict) -> dict:
@@ -88,9 +59,25 @@ def report_node(state: dict) -> dict:
         f"- Endpoints discovered: {len(s.endpoints)}",
         f"- Findings: {len(s.findings)}",
         "",
-        "## Findings",
+        f"## Discovered Attack Surface ({len(s.endpoints)} Endpoints)",
+        "",
     ]
 
+    if not s.endpoints:
+        lines.append("*No endpoints discovered.*")
+        lines.append("")
+    else:
+        lines.append("| # | Method | Path | Risk Score | Auth Req | Status | Tags |")
+        lines.append("| -: | :--- | :--- | :---: | :---: | :---: | :--- |")
+        sorted_endpoints = sorted(s.endpoints, key=lambda ep: (ep.risk_score, ep.path), reverse=True)
+        for idx, ep in enumerate(sorted_endpoints, 1):
+            auth_str = "Yes" if ep.auth_required else "No"
+            status_str = "Audited" if ep.tested else "Discovered"
+            tags_str = ", ".join(f"`{t}`" for t in ep.tags) if ep.tags else "—"
+            lines.append(f"| {idx} | `{ep.method.value}` | `{ep.path}` | {ep.risk_score}/10 | {auth_str} | {status_str} | {tags_str} |")
+        lines.append("")
+
+    lines.append("## Findings")
     if not s.findings:
         lines.append("No vulnerabilities confirmed in this scan.")
     else:
