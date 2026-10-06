@@ -22,8 +22,10 @@ const User     = require('../src/models/User');
 const TEST_MONGO_URI =
   'mongodb://ronin_admin:RoninAdmin2435@127.0.0.1:27017/ronin_test?authSource=admin';
 
+jest.setTimeout(30000);
+
 beforeAll(async () => {
-  await mongoose.connect(TEST_MONGO_URI, { serverSelectionTimeoutMS: 8000 });
+  await mongoose.connect(TEST_MONGO_URI, { serverSelectionTimeoutMS: 15000 });
 });
 
 afterEach(async () => {

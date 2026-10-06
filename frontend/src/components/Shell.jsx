@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink } from 'react-router-dom'
 import { Icon, StatusDot } from './ui.jsx'
 import { Logo, LogoMark } from './Logo.jsx'
+import { getActiveScan } from '../services/api.js'
 
 /* ── Theme hook ─────────────────────────────────────────── */
 export function useTheme() {
@@ -42,7 +44,7 @@ const SYSTEM_STATUS = [
 export function Sidebar({ open, onClose }) {
   if (!open) return null
 
-  return (
+  return createPortal(
     <>
       <div className="overlay" onClick={onClose} />
       <aside
@@ -82,7 +84,7 @@ export function Sidebar({ open, onClose }) {
 
         {/* Navigation */}
         <nav style={{ flex: 1, padding: '16px 0', overflowY: 'auto', overflowX: 'hidden' }}>
-          <div style={{ padding: '0 24px 8px', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.8px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+          <div style={{ padding: '0 24px 8px', fontSize: 10.5, fontWeight: 750, letterSpacing: '0.8px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
             Operations
           </div>
           {NAV.map(({ to, icon, label, badge, badgeColor }) => (
@@ -141,12 +143,50 @@ export function Sidebar({ open, onClose }) {
           </div>
         </div>
       </aside>
-    </>
+    </>,
+    document.body
   )
 }
 
-export function Topbar({ user, onSignOut, navOpen, onToggleNav, theme, onToggleTheme }) {
+export function Topbar({ user, onSignOut, navOpen, onToggleNav, theme, onToggleTheme, activeTarget }) {
   const isDark = theme === 'dark'
+  const userKey = user?.email || user?.id || user?._id || 'default'
+  const storageKey = `ronin_active_target_${userKey}`
+
+  const [currentTarget, setCurrentTarget] = useState(() => {
+    // Purge legacy global key immediately so it never leaks across accounts
+    try { localStorage.removeItem('ronin_active_target') } catch {}
+    if (activeTarget) return activeTarget.replace(/^https?:\/\//, '').replace(/\/$/, '')
+    return localStorage.getItem(storageKey) || 'STANDBY'
+  })
+
+  useEffect(() => {
+    // Ensure legacy unscoped key is purged
+    try { localStorage.removeItem('ronin_active_target') } catch {}
+
+    if (activeTarget) {
+      const clean = activeTarget.replace(/^https?:\/\//, '').replace(/\/$/, '')
+      setCurrentTarget(clean)
+      localStorage.setItem(storageKey, clean)
+    } else {
+      getActiveScan()
+        .then(scan => {
+          if (scan && scan.target && (scan.status === 'running' || scan.status === 'paused' || scan.status === 'pending')) {
+            const clean = scan.target.replace(/^https?:\/\//, '').replace(/\/$/, '')
+            setCurrentTarget(clean)
+            localStorage.setItem(storageKey, clean)
+          } else {
+            setCurrentTarget('STANDBY')
+            localStorage.removeItem(storageKey)
+          }
+        })
+        .catch(() => {
+          setCurrentTarget('STANDBY')
+          localStorage.removeItem(storageKey)
+        })
+    }
+  }, [activeTarget, userKey, storageKey])
+
   return (
     <header className="topbar" style={{
       position: 'fixed', top: 0, left: 0, right: 0,
@@ -187,7 +227,7 @@ export function Topbar({ user, onSignOut, navOpen, onToggleNav, theme, onToggleT
         <div className="topbar-divider" style={{ width: 1, height: 22, background: 'var(--border)', margin: '0 4px', flexShrink: 0 }} />
 
         {/* Target Badge Capsule */}
-        <div style={{
+        <div className="topbar-target-capsule" style={{
           display: 'inline-flex', alignItems: 'center', gap: 8,
           background: 'var(--bg-subtle)',
           border: '1px solid var(--border)',
@@ -196,15 +236,15 @@ export function Topbar({ user, onSignOut, navOpen, onToggleNav, theme, onToggleT
           boxShadow: 'var(--shadow-sm)',
           minWidth: 0,
         }}>
-          <StatusDot status="online" pulse />
+          <StatusDot status={currentTarget === 'STANDBY' ? 'ready' : 'online'} pulse={currentTarget !== 'STANDBY'} />
           <span className="topbar-target-label" style={{ fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.6px', textTransform: 'uppercase' }}>TARGET</span>
-          <span className="mono truncate" style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text-primary)', minWidth: 0 }}>api.vulnerable.local</span>
+          <span className="mono truncate" style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text-primary)', minWidth: 0 }}>{currentTarget}</span>
           <span style={{
             fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 'var(--r-full)',
             background: 'var(--accent-soft)', color: 'var(--accent)', letterSpacing: 0.5,
             border: '1px solid var(--accent-soft-strong)',
             flexShrink: 0,
-          }}>LOCAL</span>
+          }}>{currentTarget === 'STANDBY' ? 'IDLE' : 'ACTIVE'}</span>
         </div>
       </div>
 
@@ -260,7 +300,7 @@ export function Topbar({ user, onSignOut, navOpen, onToggleNav, theme, onToggleT
           }}>
             {user?.name?.[0]?.toUpperCase() ?? 'A'}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <div className="topbar-user-details" style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             <span style={{ fontSize: 12, fontWeight: 650, color: 'var(--text-primary)', lineHeight: 1.2 }}>{user?.name ?? 'Operator'}</span>
             <span style={{ fontSize: 10.5, color: 'var(--text-muted)', lineHeight: 1 }}>SecOps</span>
           </div>

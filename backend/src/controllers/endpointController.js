@@ -4,47 +4,67 @@
  * Controller for attack surface endpoints and targeted scans.
  */
 
+const Scan = require('../models/Scan');
 const Endpoint = require('../models/Endpoint');
-const { SEED_ENDPOINTS } = require('../utils/seedData');
 
-let inMemoryEndpoints = [...SEED_ENDPOINTS];
+// Helper to get all scan IDs belonging to the authenticated operator
+const getUserScanIds = async (req) => {
+  const userId = req.user ? (req.user._id || req.user.id) : null;
+  if (!userId) return [];
+  return Scan.find({ operatorId: { $in: [userId, String(userId)] } }).distinct('scanId');
+};
 
 exports.getEndpoints = async (req, res) => {
   const { scanId, method, tested } = req.query;
   const filter = {};
-  if (scanId) filter.scanId = scanId;
-  if (method && method !== 'ALL') filter.method = method;
-  if (tested !== undefined) filter.tested = tested === 'true';
 
   try {
-    const endpoints = await Endpoint.find(filter).sort({ group: 1, path: 1 });
-    if (!endpoints || endpoints.length === 0) {
-      let filtered = inMemoryEndpoints;
-      if (scanId) filtered = filtered.filter(e => e.scanId === scanId);
-      if (method && method !== 'ALL') filtered = filtered.filter(e => e.method === method);
-      return res.status(200).json({ success: true, count: filtered.length, data: filtered });
+    const userScanIds = await getUserScanIds(req);
+    if (!userScanIds || userScanIds.length === 0) {
+      return res.status(200).json({ success: true, count: 0, data: [] });
     }
+
+    if (scanId && scanId !== 'ALL') {
+      if (!userScanIds.includes(scanId)) {
+        return res.status(200).json({ success: true, count: 0, data: [] });
+      }
+      filter.scanId = scanId;
+    } else {
+      filter.scanId = { $in: userScanIds };
+    }
+
+    if (method && method !== 'ALL') filter.method = method;
+    if (tested !== undefined) filter.tested = tested === 'true';
+
+    const endpoints = await Endpoint.find(filter).sort({ group: 1, path: 1 });
     return res.status(200).json({ success: true, count: endpoints.length, data: endpoints });
   } catch (err) {
-    let filtered = inMemoryEndpoints;
-    if (scanId) filtered = filtered.filter(e => e.scanId === scanId);
-    if (method && method !== 'ALL') filtered = filtered.filter(e => e.method === method);
-    return res.status(200).json({ success: true, count: filtered.length, data: filtered, isFallback: true });
+    return res.status(500).json({ success: false, message: err.message, data: [] });
   }
 };
 
 exports.probeEndpoint = async (req, res) => {
   const { id } = req.params;
-  const ep = inMemoryEndpoints.find(e => e.endpointId === id || e._id === id);
+  try {
+    const userScanIds = await getUserScanIds(req);
+    const filter = { endpointId: id, scanId: { $in: userScanIds } };
 
-  return res.status(200).json({
-    success: true,
-    message: `Targeted probe dispatched for endpoint ${id}`,
-    data: {
-      endpointId: id,
-      path: ep ? ep.path : '/api/targeted',
-      status: 'probing',
-      dispatchedAt: new Date().toISOString(),
-    },
-  });
+    const ep = await Endpoint.findOne(filter);
+    if (!ep) {
+      return res.status(404).json({ success: false, message: `Endpoint ${id} not found` });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Targeted probe dispatched for endpoint ${id}`,
+      data: {
+        endpointId: id,
+        path: ep.path,
+        status: 'probing',
+        dispatchedAt: new Date().toISOString(),
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
 };

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { MethodBadge, PageHeader, StatStrip, SearchInput, Segmented, Card, Icon, Button, Drawer } from '../components/ui.jsx'
-import { MOCK_ENDPOINTS } from '../data/mock.js'
+import { useApi } from '../hooks/useApi.js'
+import { getEndpoints, probeEndpoint, getScans } from '../services/api.js'
 
 const METHODS = [
   { value: 'ALL', label: 'ALL' },
@@ -22,16 +23,35 @@ export default function Endpoints() {
   const [method, setMethod] = useState('ALL')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
+  const [selectedScan, setSelectedScan] = useState('ALL')
   const [viewMode, setViewMode] = useState('grouped') // grouped | flat
   const [selectedEndpoint, setSelectedEndpoint] = useState(null)
   const [scanningId, setScanningId] = useState(null)
 
-  const filtered = MOCK_ENDPOINTS.filter(e => {
+  const { data: rawEndpoints, loading } = useApi(getEndpoints)
+  const { data: rawScans } = useApi(getScans)
+
+  const endpoints = (rawEndpoints || []).map(e => ({
+    id: e.endpointId || e.id || e._id,
+    scanId: e.scanId,
+    method: e.method || 'GET',
+    path: e.path,
+    auth: e.auth || 'None',
+    tested: !!e.tested,
+    findings: e.findings || 0,
+    parameters: e.parameters || [],
+    riskScore: e.riskScore || 0,
+    tags: e.tags || [],
+    group: e.group || '/' + (e.path || '').split('/').filter(Boolean).slice(0, 2).join('/') || '/',
+  }))
+
+  const filtered = endpoints.filter(e => {
+    const matchScan = selectedScan === 'ALL' || e.scanId === selectedScan
     const matchM = method === 'ALL' || e.method === method
     const q = search.toLowerCase()
     const matchQ = !q || e.path.toLowerCase().includes(q)
     const matchF = filter === 'all' || (filter === 'tested' && e.tested) || (filter === 'untested' && !e.tested) || (filter === 'vulnerable' && e.findings > 0)
-    return matchM && matchQ && matchF
+    return matchScan && matchM && matchQ && matchF
   })
 
   // Group endpoints by route prefix
@@ -42,42 +62,67 @@ export default function Endpoints() {
     groups[g].push(e)
   })
 
-  const testedCount = MOCK_ENDPOINTS.filter(e => e.tested).length
-  const vulnerableCount = MOCK_ENDPOINTS.filter(e => e.findings > 0).length
-  const coveragePct = Math.round((testedCount / MOCK_ENDPOINTS.length) * 100)
+  const testedCount = endpoints.filter(e => e.tested).length
+  const vulnerableCount = endpoints.filter(e => e.findings > 0).length
+  const totalCount = endpoints.length
+  const coveragePct = totalCount > 0 ? Math.round((testedCount / totalCount) * 100) : 0
 
-  const handleTargetedScan = (e, endpoint) => {
+  const handleTargetedScan = async (e, endpoint) => {
     e.stopPropagation()
     setScanningId(endpoint.id)
-    setTimeout(() => setScanningId(null), 2200)
+    try {
+      await probeEndpoint(endpoint.id)
+    } catch (err) {
+      console.error('Probe failed:', err)
+    } finally {
+      setTimeout(() => setScanningId(null), 1800)
+    }
   }
 
   return (
     <div className="page">
       <PageHeader
         title="Endpoints & Attack Surface"
-        subtitle={`Explored API surface — ${MOCK_ENDPOINTS.length} endpoints mapped by Recon Agent.`}
+        subtitle={`Explored API surface — ${totalCount} endpoints mapped by Recon Agent.${loading ? ' (Refreshing...)' : ''}`}
       />
 
       {/* Surface stats */}
       <div style={{ marginBottom: 20 }}>
         <StatStrip items={[
-          { label: 'Total Endpoints', value: MOCK_ENDPOINTS.length },
+          { label: 'Total Endpoints', value: totalCount },
           { label: 'Tested', value: testedCount, accent: 'var(--success)' },
-          { label: 'Untested', value: MOCK_ENDPOINTS.length - testedCount },
+          { label: 'Untested', value: totalCount - testedCount },
           { label: 'Vulnerable', value: vulnerableCount, accent: 'var(--sev-high)' },
           { label: 'Surface Coverage', value: `${coveragePct}%`, accent: 'var(--success)' },
         ]} />
       </div>
 
       {/* Controls & Filters */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', flex: 1 }}>
-          <SearchInput value={search} onChange={e => setSearch(e.target.value)} placeholder="Search path, params, or resource..." label="Filter endpoints" />
+      <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', flex: '1 1 240px', minWidth: 0 }}>
+          <div style={{ flex: '1 1 220px', minWidth: 180 }}>
+            <SearchInput value={search} onChange={e => setSearch(e.target.value)} placeholder="Search path, params, or resource..." label="Filter endpoints" />
+          </div>
+          {rawScans && rawScans.length > 0 && (
+            <select
+              value={selectedScan}
+              onChange={e => setSelectedScan(e.target.value)}
+              className="input"
+              style={{ width: 'auto', minWidth: 160, padding: '7px 12px', fontSize: 12, background: 'var(--bg-subtle)', borderRadius: 'var(--r-md)', border: '1px solid var(--border)' }}
+              aria-label="Filter by scan"
+            >
+              <option value="ALL">All Scans ({endpoints.length} routes)</option>
+              {rawScans.map(s => (
+                <option key={s.scanId || s.id} value={s.scanId || s.id}>
+                  {(s.name || s.target || s.scanId)}
+                </option>
+              ))}
+            </select>
+          )}
           <Segmented options={METHODS} value={method} onChange={setMethod} />
           <Segmented options={STATUS_FILTERS} value={filter} onChange={setFilter} />
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <button
             onClick={() => setViewMode('grouped')}
             className="chip"
@@ -96,11 +141,21 @@ export default function Endpoints() {
       </div>
 
       {/* Endpoints Table / Group Accordion */}
-      {viewMode === 'grouped' ? (
+      {filtered.length === 0 ? (
+        <Card style={{ padding: '44px 24px', textAlign: 'center' }}>
+          <Icon name="endpoints" size={32} style={{ color: 'var(--text-muted)', marginBottom: 12 }} />
+          <div style={{ fontSize: 16, fontWeight: 650, color: 'var(--text-primary)', marginBottom: 4 }}>No Endpoints Matching Filter</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 460, margin: '0 auto' }}>
+            {endpoints.length === 0
+              ? 'No attack surface endpoints mapped yet. Run an automated scan from the Scans page to discover target API routes.'
+              : 'Try clearing your search query or selecting a different HTTP method / scan filter.'}
+          </div>
+        </Card>
+      ) : viewMode === 'grouped' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {Object.entries(groups).map(([groupName, items]) => (
             <Card key={groupName} style={{ overflow: 'hidden' }}>
-              <div style={{ padding: '12px 18px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ padding: '12px 18px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Icon name="folder" size={15} style={{ color: 'var(--accent)' }} />
                   <span className="mono" style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{groupName}</span>
@@ -114,20 +169,20 @@ export default function Endpoints() {
               </div>
 
               <div className="table-scroll">
-                <div style={{ minWidth: 700 }}>
+                <div style={{ minWidth: 680 }}>
                   {items.map(e => (
                     <div
                       key={e.id}
                       onClick={() => setSelectedEndpoint(e)}
                       className="table-row"
-                      style={{ gridTemplateColumns: '80px 1fr 100px 90px 100px 140px', cursor: 'pointer' }}
+                      style={{ gridTemplateColumns: '70px 1.4fr 90px 90px 90px 120px', cursor: 'pointer' }}
                     >
                       <div><MethodBadge method={e.method} /></div>
-                      <div className="mono" style={{ fontSize: 12.5, fontWeight: e.findings > 0 ? 650 : 500, color: e.findings > 0 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                      <div className="mono truncate" style={{ fontSize: 12.5, fontWeight: e.findings > 0 ? 650 : 500, color: e.findings > 0 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
                         {e.path}
                       </div>
                       <div>
-                        <span className="mono" style={{ fontSize: 11.5, color: e.auth === 'None' ? 'var(--text-muted)' : 'var(--text-secondary)' }}>
+                        <span className="mono" style={{ fontSize: 11.5, color: e.auth === 'None' || e.auth === 'No' ? 'var(--text-muted)' : 'var(--text-secondary)' }}>
                           {e.auth}
                         </span>
                       </div>
@@ -138,7 +193,7 @@ export default function Endpoints() {
                           color: e.tested ? 'var(--success)' : 'var(--text-muted)',
                           border: `1px solid ${e.tested ? 'rgba(34,197,94,0.25)' : 'var(--border)'}`,
                         }}>
-                          {e.tested ? 'Tested' : 'Pending'}
+                          {e.tested ? 'Tested' : 'Discovered'}
                         </span>
                       </div>
                       <div>
@@ -170,8 +225,8 @@ export default function Endpoints() {
       ) : (
         <Card>
           <div className="table-scroll">
-            <div style={{ minWidth: 700 }}>
-              <div className="table-head" style={{ gridTemplateColumns: '80px 1fr 100px 90px 100px 140px' }}>
+            <div style={{ minWidth: 680 }}>
+              <div className="table-head" style={{ gridTemplateColumns: '70px 1.4fr 90px 90px 90px 120px' }}>
                 <div>Method</div><div>Path</div><div>Auth</div><div>Status</div><div>Findings</div><div>Action</div>
               </div>
               {filtered.map(e => (
@@ -179,14 +234,14 @@ export default function Endpoints() {
                   key={e.id}
                   onClick={() => setSelectedEndpoint(e)}
                   className="table-row"
-                  style={{ gridTemplateColumns: '80px 1fr 100px 90px 100px 140px', cursor: 'pointer' }}
+                  style={{ gridTemplateColumns: '70px 1.4fr 90px 90px 90px 120px', cursor: 'pointer' }}
                 >
                   <div><MethodBadge method={e.method} /></div>
-                  <div className="mono" style={{ fontSize: 12.5, color: 'var(--text-primary)' }}>{e.path}</div>
+                  <div className="mono truncate" style={{ fontSize: 12.5, color: 'var(--text-primary)' }}>{e.path}</div>
                   <div className="mono" style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{e.auth}</div>
                   <div>
                     <span style={{ fontSize: 11, fontWeight: 650, color: e.tested ? 'var(--success)' : 'var(--text-muted)' }}>
-                      {e.tested ? 'Tested' : 'Pending'}
+                      {e.tested ? 'Tested' : 'Discovered'}
                     </span>
                   </div>
                   <div className="num" style={{ fontSize: 12, fontWeight: 700, color: e.findings > 0 ? 'var(--sev-high)' : 'var(--text-muted)' }}>

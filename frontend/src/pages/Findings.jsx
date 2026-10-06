@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Card, Icon, SeverityBadge, MethodBadge, PageHeader, SearchInput, Segmented, Drawer, Button } from '../components/ui.jsx'
-import { MOCK_FINDINGS } from '../data/mock.js'
+import { useApi } from '../hooks/useApi.js'
+import { getFindings } from '../services/api.js'
 
 function FindingDrawer({ finding, onClose }) {
   const [copiedType, setCopiedType] = useState(null)
@@ -108,7 +109,7 @@ ${finding.remediation}
       )}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 6, borderBottom: '1px solid var(--border)', paddingBottom: 10, marginBottom: 18, overflowX: 'auto' }}>
+      <div className="table-scroll" style={{ display: 'flex', gap: 6, borderBottom: '1px solid var(--border)', paddingBottom: 10, marginBottom: 18 }}>
         {[
           { id: 'narrative',   label: 'Attack Narrative' },
           { id: 'http',        label: 'HTTP Request & Response' },
@@ -249,22 +250,52 @@ export default function Findings() {
   const [sev, setSev] = useState('all')
   const [search, setSearch] = useState('')
 
-  const filtered = MOCK_FINDINGS.filter(f => {
+  const { data: rawFindings, loading } = useApi(getFindings)
+
+  const findingsList = (rawFindings || []).map(f => ({
+    id: f.findingId || f.id || f._id,
+    scanId: f.scanId || 'UNKNOWN',
+    title: f.title,
+    severity: (f.severity || 'medium').toLowerCase(),
+    owasp: f.owasp || 'API Security',
+    endpoint: f.endpoint || '/',
+    method: f.method || 'GET',
+    cvss: f.cvss ?? 5.0,
+    cvssVector: f.cvssVector || 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N',
+    cvssMetrics: f.cvssMetrics || {},
+    status: f.status || 'verified',
+    discoveredAt: f.discoveredAt ? (typeof f.discoveredAt === 'string' ? f.discoveredAt.slice(0, 16).replace('T', ' ') : new Date(f.discoveredAt).toISOString().slice(0, 16).replace('T', ' ')) : 'Recent',
+    description: f.description || '',
+    narrative: f.narrative || f.description || '',
+    rawRequest: f.rawRequest || '',
+    rawResponse: f.rawResponse || '',
+    poc: f.poc || f.pocCurl || '',
+    pythonPoc: f.pythonPoc || '',
+    remediation: f.remediation || '',
+    remediationCode: f.remediationCode || '',
+  }))
+
+  const filtered = findingsList.filter(f => {
     const matchSev = sev === 'all' || f.severity === sev
     const q = search.toLowerCase()
     const matchQ = !q || f.title.toLowerCase().includes(q) || f.endpoint.toLowerCase().includes(q) || f.owasp.toLowerCase().includes(q)
     return matchSev && matchQ
   })
 
-  const total = MOCK_FINDINGS.length
+  const total = findingsList.length
   const counts = { critical: 0, high: 0, medium: 0, low: 0 }
-  MOCK_FINDINGS.forEach(f => { counts[f.severity] = (counts[f.severity] ?? 0) + 1 })
+  findingsList.forEach(f => {
+    const s = f.severity.toLowerCase()
+    if (counts[s] !== undefined) counts[s] = counts[s] + 1
+  })
+
+  const scanCount = [...new Set(findingsList.map(f => f.scanId))].length
 
   return (
     <div className="page">
       <PageHeader
         title="Vulnerability Findings"
-        subtitle={`${total} verified findings across ${[...new Set(MOCK_FINDINGS.map(f => f.scanId))].length} security assessments.`}
+        subtitle={`${total} verified findings across ${scanCount} security assessment${scanCount !== 1 ? 's' : ''}.${loading ? ' (Refreshing...)' : ''}`}
       />
 
       {/* Severity distribution hero */}
@@ -289,7 +320,9 @@ export default function Findings() {
 
       {/* Search and Filters */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
-        <SearchInput value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter by title, endpoint, or OWASP tag..." label="Search findings" />
+        <div style={{ flex: '1 1 260px', minWidth: 200 }}>
+          <SearchInput value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter by title, endpoint, or OWASP tag..." label="Search findings" />
+        </div>
         <Segmented options={SEVERITIES} value={sev} onChange={setSev} />
       </div>
 

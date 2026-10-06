@@ -6,9 +6,13 @@
 
 const express = require('express');
 const router = express.Router();
+const { protect } = require('../middleware/auth');
 const { getEndpoints, probeEndpoint } = require('../controllers/endpointController');
 
-// GET /api/endpoints — list discovered routes with optional ?scanId= & ?method=
+// All endpoint routes require authenticated user session
+router.use(protect);
+
+// GET /api/endpoints — list user's discovered routes with optional ?scanId= & ?method=
 router.get('/', getEndpoints);
 
 // POST /api/endpoints/:id/probe — targeted single-route probe

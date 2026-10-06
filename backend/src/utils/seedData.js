@@ -203,19 +203,8 @@ const SEED_SANDBOX = [
 ];
 
 async function seedInitialData() {
-  try {
-    const scanCount = await Scan.countDocuments();
-    if (scanCount === 0) {
-      console.log('[Seed] Populating initial demo data...');
-      await Scan.insertMany(SEED_SCANS);
-      await Finding.insertMany(SEED_FINDINGS);
-      await Endpoint.insertMany(SEED_ENDPOINTS);
-      await SandboxRun.insertMany(SEED_SANDBOX);
-      console.log('[Seed] Initial demo data seeded successfully.');
-    }
-  } catch (err) {
-    console.warn('[Seed] Warning: Could not seed data:', err.message);
-  }
+  // Mock auto-seeding disabled to ensure 100% genuine live database telemetry
+  return;
 }
 
 module.exports = { seedInitialData, SEED_SCANS, SEED_FINDINGS, SEED_ENDPOINTS, SEED_SANDBOX };

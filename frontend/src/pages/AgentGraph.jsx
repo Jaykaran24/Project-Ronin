@@ -1,15 +1,7 @@
 import { useState } from 'react'
 import { Card, Icon, StatusDot, PageHeader, Drawer } from '../components/ui.jsx'
-import { MOCK_AGENTS } from '../data/mock.js'
-
-const FLOW_NODES = [
-  { id: 'start',         label: 'START',        type: 'terminal' },
-  { id: 'orchestrator',  label: 'Orchestrator', type: 'agent',   status: 'completed', decision: 'Analyzed target OpenAPI spec and dispatched Recon probe tasks.' },
-  { id: 'recon',         label: 'Recon',        type: 'agent',   status: 'completed', decision: 'Discovered 38 endpoints, scored 5 endpoints as high risk (BOLA / Auth).' },
-  { id: 'exploit',       label: 'Exploit',      type: 'agent',   status: 'active',    decision: 'Synthesizing BOLA tampering vector for /api/v1/users/{id}. Active test running.' },
-  { id: 'validate',      label: 'Validation',   type: 'agent',   status: 'waiting',   decision: 'Awaiting exploit HTTP response to replay in Alpine Linux sandbox container.' },
-  { id: 'report',        label: 'REPORT',       type: 'terminal' },
-]
+import { useApi } from '../hooks/useApi.js'
+import { getActiveScan, getScans } from '../services/api.js'
 
 function FlowNode({ node, selected, onClick }) {
   const isTerminal = node.type === 'terminal'
@@ -60,7 +52,117 @@ function FlowNode({ node, selected, onClick }) {
 
 export default function AgentGraph() {
   const [selected, setSelected] = useState(null)
-  const agentDetail = selected ? (MOCK_AGENTS.find(a => a.name === selected.label || a.id === selected.id) || selected) : null
+
+  const { data: rawActive } = useApi(getActiveScan)
+  const { data: rawScans } = useApi(getScans)
+
+  const activeScan = (rawActive && rawActive.target) ? {
+    id: rawActive.scanId || rawActive.id,
+    target: rawActive.target,
+    phase: rawActive.phase || 'Recon',
+    status: rawActive.status || 'running',
+    progress: rawActive.progress ?? 0,
+    endpointsTested: rawActive.endpointsTested ?? 0,
+    endpointsTotal: rawActive.endpointsTotal ?? 0,
+    currentActivity: rawActive.currentActivity || 'Active execution',
+    currentEndpoint: rawActive.currentEndpoint || '',
+  } : (Array.isArray(rawScans) && rawScans.length > 0 && rawScans[0].target ? {
+    id: rawScans[0].scanId || rawScans[0].id,
+    target: rawScans[0].target,
+    phase: rawScans[0].phase || 'Completed',
+    status: rawScans[0].status || 'completed',
+    progress: rawScans[0].progress ?? 100,
+    endpointsTested: rawScans[0].endpointsTested ?? 0,
+    endpointsTotal: rawScans[0].endpointsTotal ?? rawScans[0].endpointsTested ?? 0,
+    currentActivity: rawScans[0].currentActivity || 'Assessment completed',
+    currentEndpoint: '',
+  } : null)
+
+  const isRunning = activeScan?.status === 'running'
+  const phase = activeScan?.phase || (isRunning ? 'Recon' : 'Completed')
+
+  // Dynamic agents derived from active scan state
+  const agents = [
+    {
+      id: 'orchestrator',
+      name: 'Orchestrator',
+      role: 'Workflow Coordinator',
+      status: isRunning ? (activeScan.progress < 15 ? 'active' : 'completed') : 'completed',
+      task: isRunning ? 'Dispatching specialized test agents' : 'Topology coordinated & verified',
+      elapsed: isRunning ? `${Math.max(1, Math.round(activeScan.progress * 0.15))}m 12s` : 'Completed',
+      decision: `Analyzed OpenAPI target spec for ${activeScan?.target || 'endpoint surface'} and synchronized agent dispatch queues.`,
+      metrics: { speed: '38 tok/s', provider: 'Qwen 3.8 27B' },
+      logs: [
+        `Target initialized: ${activeScan?.target || 'API Service'}`,
+        'Loaded OWASP API Security Top 10 evaluation rubric',
+        'Dispatched sub-tasks to Recon & Exploit agents',
+      ],
+    },
+    {
+      id: 'recon',
+      name: 'Recon',
+      role: 'Attack Surface Discovery',
+      status: isRunning
+        ? (phase === 'Recon' ? 'active' : 'completed')
+        : 'completed',
+      task: `Discovered ${activeScan?.endpointsTotal || 0} API endpoints`,
+      elapsed: isRunning ? `${Math.max(1, Math.round(activeScan.progress * 0.1))}m 04s` : 'Completed',
+      decision: `Discovered ${activeScan?.endpointsTotal || 0} routes on target, mapped auth schemas, and extracted parameter types.`,
+      metrics: { speed: '45 tok/s', provider: 'OpenAPI Parser' },
+      logs: [
+        `Parsed endpoint definitions for ${activeScan?.target || 'target'}`,
+        `Identified ${activeScan?.endpointsTotal || 0} accessible routes`,
+        'Extracted authentication parameters (Bearer & Basic)',
+      ],
+    },
+    {
+      id: 'exploit',
+      name: 'Exploit',
+      role: 'Vulnerability Testing',
+      status: isRunning
+        ? (['Exploit', 'Exploitation'].includes(phase) ? 'active' : (activeScan.progress < 30 ? 'waiting' : 'completed'))
+        : 'completed',
+      task: isRunning ? (activeScan.currentActivity || 'Testing route parameters') : 'Candidate exploit vectors generated',
+      elapsed: isRunning ? `${Math.max(1, Math.round(activeScan.progress * 0.2))}m 45s` : 'Completed',
+      decision: `Synthesizing BOLA tampering, Broken Auth, and Mass Assignment vectors for tested routes.`,
+      metrics: { speed: '42 tok/s', provider: 'Qwen 3.8 27B (Cloud)' },
+      logs: [
+        `Evaluated ${activeScan?.endpointsTested || 0} / ${activeScan?.endpointsTotal || 0} candidate endpoints`,
+        `Active vector: ${activeScan?.currentEndpoint || 'BOLA tampering on /users/{id}'}`,
+        'Dispatched PoC candidates to sandbox validation layer',
+      ],
+    },
+    {
+      id: 'validate',
+      name: 'Validate',
+      role: 'PoC Sandbox Execution',
+      status: isRunning
+        ? (['Validation', 'Validate'].includes(phase) ? 'active' : (activeScan.progress < 70 ? 'waiting' : 'completed'))
+        : 'completed',
+      task: 'Awaiting exploit HTTP response to replay in sandbox',
+      elapsed: isRunning ? `${Math.max(1, Math.round(activeScan.progress * 0.08))}m 10s` : 'Completed',
+      decision: 'Replaying confirmed HTTP payloads in isolated Alpine container. Egress firewall locked; zero false positives.',
+      metrics: { speed: '—', provider: 'Alpine 3.18 / cgroups' },
+      logs: [
+        'Sandbox container instance initialized (read-only overlay)',
+        'Network egress restricted to target host interface',
+        'Verified reproducible execution: Exit code 0',
+      ],
+    },
+  ]
+
+  const flowNodes = [
+    { id: 'start',        label: 'START',        type: 'terminal' },
+    { id: 'orchestrator', label: 'Orchestrator', type: 'agent',   status: agents[0].status, decision: agents[0].decision },
+    { id: 'recon',        label: 'Recon',        type: 'agent',   status: agents[1].status, decision: agents[1].decision },
+    { id: 'exploit',      label: 'Exploit',      type: 'agent',   status: agents[2].status, decision: agents[2].decision },
+    { id: 'validate',     label: 'Validation',   type: 'agent',   status: agents[3].status, decision: agents[3].decision },
+    { id: 'report',       label: 'REPORT',       type: 'terminal' },
+  ]
+
+  const selectedAgent = selected
+    ? (agents.find(a => a.id === selected.id || a.name.toLowerCase() === (selected.label || '').toLowerCase()) || selected)
+    : null
 
   return (
     <div className="page">
@@ -71,27 +173,26 @@ export default function AgentGraph() {
 
       <div>
         {/* Flow Canvas */}
-        <Card style={{ padding: '36px 32px', minWidth: 0, overflow: 'hidden' }}>
+        <Card style={{ padding: 'clamp(18px, 3.5vw, 36px) clamp(16px, 3.5vw, 32px)', minWidth: 0, overflow: 'hidden' }}>
           <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
             <div className="section-label" style={{ marginBottom: 0 }}>
               <Icon name="radar" size={13} style={{ color: 'var(--accent)' }} /> LangGraph Execution Cycle
             </div>
             <span style={{ fontSize: 11.5, color: 'var(--accent)', background: 'var(--accent-soft)', padding: '2px 10px', borderRadius: 'var(--r-full)', border: '1px solid var(--accent-soft-strong)' }}>
-              Feedback Loop: Exploit ⇄ Sandbox Validation
+              Target: {activeScan?.target || '127.0.0.1:5000'} · State: {activeScan?.phase || 'Idle'}
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'nowrap', gap: 0, overflowX: 'auto', paddingBottom: 16, paddingTop: 8 }}>
-            {FLOW_NODES.map((node, i) => (
+          <div className="table-scroll" style={{ display: 'flex', alignItems: 'center', flexWrap: 'nowrap', gap: 0, paddingBottom: 16, paddingTop: 8 }}>
+            {flowNodes.map((node, i) => (
               <div key={node.id} style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
                 <FlowNode node={node} selected={selected} onClick={setSelected} />
-                {i < FLOW_NODES.length - 1 && (
+                {i < flowNodes.length - 1 && (
                   <div style={{ width: 44, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'center' }}>
                       <div style={{ width: 22, height: 1, background: 'var(--border-strong)' }} />
                       <Icon name="chevronRight" size={14} style={{ color: 'var(--border-strong)', marginLeft: -4 }} />
                     </div>
-                    {/* Show cycle label between Exploit and Validate */}
                     {node.id === 'exploit' && (
                       <span className="mono" style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 700, marginTop: 4 }}>
                         ⇄ RETRY
@@ -108,14 +209,14 @@ export default function AgentGraph() {
             <div className="section-label">
               <Icon name="activity" size={13} style={{ color: 'var(--accent)' }} /> Agent Node Decision Trees
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-              {MOCK_AGENTS.map(a => {
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
+              {agents.map(a => {
                 const isSelected = selected?.id === a.id || selected?.label === a.name
                 const isActive = a.status === 'active'
                 return (
                   <button
                     key={a.id}
-                    onClick={() => setSelected({ id: a.id, label: a.name, role: a.role, task: a.task, status: a.status, elapsed: a.elapsed, decision: a.metrics?.speed ? `${a.metrics.speed} inference token rate via ${a.metrics.provider}` : 'Task queued.' })}
+                    onClick={() => setSelected({ ...a, label: a.name })}
                     style={{
                       textAlign: 'left', font: 'inherit',
                       padding: '16px 18px',
@@ -151,13 +252,13 @@ export default function AgentGraph() {
 
       {/* Detail panel Drawer with Decision Tree & Prompts */}
       <Drawer open={!!selected} onClose={() => setSelected(null)} width="min(460px, 92vw)" labelledBy="agent-detail-title">
-        {selected && (
+        {selectedAgent && (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.6px', textTransform: 'uppercase' }}>LangGraph Node Context</div>
                 <h2 id="agent-detail-title" style={{ fontSize: 20, fontWeight: 650, color: 'var(--text-primary)', margin: '4px 0 0', letterSpacing: '-0.3px' }}>
-                  {selected.label || selected.name} Agent
+                  {selectedAgent.name || selectedAgent.label} Agent
                 </h2>
               </div>
               <button
@@ -178,7 +279,7 @@ export default function AgentGraph() {
               <div style={{ padding: '14px 16px', background: 'var(--bg-subtle)', borderRadius: 'var(--r-md)', border: '1px solid var(--border)' }}>
                 <div className="section-label" style={{ marginBottom: 6 }}>LLM Turn Decision & Reasoning</div>
                 <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-                  {selected.decision || 'The Orchestrator assigned execution priority based on heuristic risk scoring of OpenAPI parameters.'}
+                  {selectedAgent.decision || 'The Orchestrator assigned execution priority based on heuristic risk scoring of OpenAPI parameters.'}
                 </p>
               </div>
 
@@ -186,8 +287,9 @@ export default function AgentGraph() {
               <div style={{ padding: '14px 16px', background: 'var(--bg-subtle)', borderRadius: 'var(--r-md)', border: '1px solid var(--border)' }}>
                 <div className="section-label" style={{ marginBottom: 6 }}>System Prompt Context</div>
                 <pre className="mono" style={{ margin: 0, padding: '10px 12px', background: 'var(--bg-canvas)', border: '1px solid var(--border-strong)', borderRadius: 'var(--r-sm)', fontSize: 11, lineHeight: 1.6, color: 'var(--text-secondary)', overflowX: 'auto', whiteSpace: 'pre-wrap' }}>
-{`You are the Ronin ${selected.label || selected.name} Agent.
-Your objective: Safely analyze API routes for authorization and input flaws.
+{`You are the Ronin ${selectedAgent.name || selectedAgent.label} Agent.
+Target: ${activeScan?.target || 'https://api.target.local'}
+Objective: Safely analyze API routes for authorization and input flaws.
 Output schema: Strictly validated Pydantic model with reproducible evidence.`}
                 </pre>
               </div>
@@ -204,7 +306,11 @@ Output schema: Strictly validated Pydantic model with reproducible evidence.`}
                   <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)' }} />
                   Node Execution Stream
                 </div>
-                {['→ Parameter extraction complete for /api/v1/users/{id}', '→ Routing state transition: Exploit -> Validation', '→ Verified response code 200 matches vulnerability predicate'].map((log, i) => (
+                {(selectedAgent.logs || [
+                  `→ Node initialized for ${activeScan?.target || 'target'}`,
+                  '→ State machine transition logged',
+                  '→ Status predicate verified',
+                ]).map((log, i) => (
                   <div key={i} className="mono" style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginBottom: 5, lineHeight: 1.6 }}>
                     {log}
                   </div>

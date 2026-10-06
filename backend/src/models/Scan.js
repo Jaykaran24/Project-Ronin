@@ -83,8 +83,9 @@ const ScanSchema = new mongoose.Schema(
       unchangedFindings: { type: Number, default: 0 },
     },
     operatorId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
       ref: 'User',
+      index: true,
       default: null,
     },
     startedAt: {

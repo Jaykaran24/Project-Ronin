@@ -6,9 +6,13 @@
 
 const express = require('express');
 const router = express.Router();
+const { protect } = require('../middleware/auth');
 const { getFindings, getFindingById, createFinding } = require('../controllers/findingController');
 
-// GET /api/findings — list all verified findings with optional ?scanId= & ?severity=
+// All findings endpoints require authenticated user session
+router.use(protect);
+
+// GET /api/findings — list user's verified findings with optional ?scanId= & ?severity=
 router.get('/', getFindings);
 
 // GET /api/findings/:id — get finding detail and PoC

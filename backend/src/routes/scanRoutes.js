@@ -6,9 +6,13 @@
 
 const express = require('express');
 const router = express.Router();
+const { protect } = require('../middleware/auth');
 const { getScans, getActiveScan, getScanById, createScan, updateScanStatus, getScanReport } = require('../controllers/scanController');
 
-// GET /api/scans — list all scans
+// All scan endpoints require authenticated user session
+router.use(protect);
+
+// GET /api/scans — list user's scans
 router.get('/', getScans);
 
 // GET /api/scans/active — get current active running scan

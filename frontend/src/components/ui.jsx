@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 
 // Shared icon set — SVG inline, stroke-based, consistent 1.8 stroke width
 export function Icon({ name, size = 18, className = '', style = {} }) {
@@ -327,7 +328,7 @@ export function Dialog({ open, onClose, title, subtitle, children, footer, width
   const ref = useRef(null)
   useFocusTrap(open, ref, onClose)
   if (!open) return null
-  return (
+  return createPortal(
     <>
       <div className="overlay" onClick={onClose} />
       <div
@@ -356,7 +357,8 @@ export function Dialog({ open, onClose, title, subtitle, children, footer, width
           </div>
         )}
       </div>
-    </>
+    </>,
+    document.body
   )
 }
 
@@ -364,7 +366,7 @@ export function Drawer({ open, onClose, children, width = 'min(600px, 90vw)', la
   const ref = useRef(null)
   useFocusTrap(open, ref, onClose)
   if (!open) return null
-  return (
+  return createPortal(
     <>
       <div className="overlay" onClick={onClose} />
       <div
@@ -377,6 +379,7 @@ export function Drawer({ open, onClose, children, width = 'min(600px, 90vw)', la
       >
         {children}
       </div>
-    </>
+    </>,
+    document.body
   )
 }

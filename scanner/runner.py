@@ -35,7 +35,7 @@ app     = typer.Typer(help="Ronin AI Scanner — Phase 1")
 console = Console()
 
 
-def run_scan(target: str, model: str | None = None, provider: str | None = None) -> ScanState:
+def run_scan(target: str, model: str | None = None, provider: str | None = None, scan_id: str | None = None) -> ScanState:
     """Execute a full scan and return the final state."""
 
     config_kwargs = {"target_url": target, "target_name": target}
@@ -45,7 +45,11 @@ def run_scan(target: str, model: str | None = None, provider: str | None = None)
         config_kwargs["llm_provider"] = provider
 
     config = ScanConfig(**config_kwargs)
-    state = ScanState(config=config)
+    state_kwargs = {"config": config}
+    if scan_id:
+        state_kwargs["scan_id"] = scan_id
+
+    state = ScanState(**state_kwargs)
     initial = state.model_dump()
 
     console.print(Panel(
@@ -74,15 +78,25 @@ def run_scan(target: str, model: str | None = None, provider: str | None = None)
                 prog     = node_output.get("progress", 0)
                 progress.update(task, description=f"[cyan]{node_name}[/] | Phase: {phase} | {prog}%")
 
+                endpoints_raw = node_output.get("endpoints", [])
+                ep_summary = []
+                for ep in endpoints_raw:
+                    if hasattr(ep, "method") and hasattr(ep, "path"):
+                        m = ep.method.value if hasattr(ep.method, "value") else str(ep.method)
+                        ep_summary.append({"method": m, "path": ep.path})
+                    elif isinstance(ep, dict):
+                        ep_summary.append({"method": ep.get("method", "GET"), "path": ep.get("path", "/")})
+
                 # Emit JSON line to stdout for dashboard integration
                 emit = {
-                    "timestamp":  datetime.now().isoformat(),
-                    "node":       node_name,
-                    "phase":      phase,
-                    "progress":   prog,
-                    "endpoints":  len(node_output.get("endpoints", [])),
-                    "findings":   len(node_output.get("findings", [])),
-                    "suspects":   len(node_output.get("suspected_vulns", [])),
+                    "timestamp":     datetime.now().isoformat(),
+                    "node":          node_name,
+                    "phase":         phase,
+                    "progress":      prog,
+                    "endpoints":     len(endpoints_raw),
+                    "endpoint_list": ep_summary[:20],
+                    "findings":      len(node_output.get("findings", [])),
+                    "suspects":      len(node_output.get("suspected_vulns", [])),
                 }
                 print(f"RONIN_EVENT:{json.dumps(emit)}", file=sys.stderr, flush=True)
 
@@ -230,6 +244,7 @@ def scan(
     provider:    Optional[str] = typer.Option(None, "--provider", "-p", help="LLM provider: openrouter | groq | ollama"),
     model:       Optional[str] = typer.Option(None, "--model", "-m", help="Model identifier to use"),
     output:      Optional[str] = typer.Option(None, "--output", "-o", help="Optional local file path to export markdown report"),
+    scan_id:     Optional[str] = typer.Option(None, "--scan-id", "-s", help="Scan ID matching backend management system"),
     interactive: bool          = typer.Option(False, "--interactive", "-i", help="Run in continuous interactive shell mode"),
 ):
     """Run a full Ronin scan against a target API, or start an interactive testing shell."""
@@ -239,7 +254,7 @@ def scan(
         sys.stderr.flush()
         os._exit(0)
     else:
-        final = run_scan(target, model=model, provider=provider)
+        final = run_scan(target, model=model, provider=provider, scan_id=scan_id)
         print_report(final, output_file=output)
         sys.stdout.flush()
         sys.stderr.flush()

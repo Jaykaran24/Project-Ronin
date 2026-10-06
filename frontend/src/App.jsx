@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import './App.css'
 import { Sidebar, Topbar, useTheme } from './components/Shell.jsx'
-import { MOCK_USER } from './data/mock.js'
 
 // Auth page
 import AuthPage from './pages/Auth.jsx'
@@ -18,6 +18,28 @@ import Settings   from './pages/Settings.jsx'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
+function ScrollToTop() {
+  const { pathname } = useLocation()
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+    if (document.documentElement) {
+      document.documentElement.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+    }
+    if (document.body) {
+      document.body.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+    }
+  }, [pathname])
+
+  return null
+}
+
+const DEFAULT_OPERATOR = {
+  name: 'Security Operator',
+  email: 'operator@ronin.local',
+  role: 'Security Operator',
+}
+
 function DashboardShell({ user, onSignOut }) {
   const [navOpen, setNavOpen] = useState(false)
   const { theme, toggle: onToggleTheme } = useTheme()
@@ -27,10 +49,11 @@ function DashboardShell({ user, onSignOut }) {
     name: user.fullName || user.name || 'Operator',
     email: user.email || 'operator@ronin.local',
     role: user.role || 'Security Operator',
-  } : MOCK_USER
+  } : DEFAULT_OPERATOR
 
   return (
     <div className="app-shell">
+      <ScrollToTop />
       <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
       <Topbar
         user={displayUser}
@@ -93,6 +116,12 @@ export default function App() {
   const handleSignOut = () => {
     localStorage.removeItem('roninToken')
     localStorage.removeItem('roninUser')
+    localStorage.removeItem('ronin_active_target')
+    try {
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('ronin_active_target')) localStorage.removeItem(k)
+      })
+    } catch {}
     setUser(null)
   }
 

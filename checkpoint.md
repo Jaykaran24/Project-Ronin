@@ -19,6 +19,10 @@
 | **CP-009** | 2026-10-05 | Modern UI Design System & Visual Polish | ✅ Completed | Cyber-grade UI upgrade: subtle glassmorphism, radar pulse indicators, specular highlights, glowing telemetry, and elevated components. |
 | **CP-010** | 2026-10-05 | Full `improvement.md` Dashboard Implementation | ✅ Completed | Implemented all 8 improvement backlog sections: interactive activity stream, CVSS 3.1 breakdown, PoC inspector, route accordions, container terminal, OWASP matrix, and diagnostics. |
 | **CP-011** | 2026-10-06 | Autonomous Multi-Agent AI Engine (Phases 2–5) | ✅ Completed | Built Recon Crawler + Headers Audit, Exploit/Audit Agent, Validation & Remediation Agent, full LangGraph StateGraph, and CLI stream runner. Verified live against local API. |
+| **CP-012** | 2026-10-07 | End-to-End Mock Data Elimination & Real Backend Data Bridge | ✅ Completed | Built central API client & React hooks. Replaced all static mock imports across all 8 dashboard pages with live Node/Express + MongoDB API endpoints. Implemented live scan telemetry logging. |
+| **CP-013** | 2026-10-07 | Attack Surface Endpoints Management & Live Route Probing | ✅ Completed | Added full endpoints listing, resource group accordions, schema drill-downs, and targeted route probe execution directly from Scans and Endpoints pages. |
+| **CP-014** | 2026-10-07 | Comprehensive Responsive Layout & Viewport Overflow Elimination | ✅ Completed | Fixed critical off-screen overflow issues across all dashboard pages, cards, tables, terminals, and modals with responsive grids, overflow wrappers, and mobile breakpoint styling. |
+| **CP-015** | 2026-10-07 | Multi-Tenant Data Isolation & Cross-Account Target Privacy | ✅ Completed | Enforced strict user data isolation across Scans, Findings, Endpoints, and Sandbox runs. Fixed cross-user active target header leakage (`TARGET jaycodes.space`), user-scoped localStorage caching, and added automated test suite (30/30 passing). |
 
 
 ---
@@ -443,15 +447,110 @@
 
 ---
 
+### [CP-012] — End-to-End Mock Data Elimination & Real Backend Data Bridge
+* **Date:** 2026-10-07
+* **Milestone Target:** Full Mock Data Migration to Live Node/Express + MongoDB API
+* **Status:** Complete & Verified
+
+#### Deliverables & Implementation:
+1. **Centralized HTTP API Client ([`frontend/src/services/api.js`](frontend/src/services/api.js)):**
+   - Built unified service layer exposing functions for Scans (`getScans`, `getActiveScan`, `getScanById`, `createScan`, `updateScanStatus`, `downloadReport`), Findings (`getFindings`, `getFindingById`), Endpoints (`getEndpoints`, `probeEndpoint`), and Sandbox (`getSandboxRuns`, `getSandboxRunById`).
+   - Integrated automatic `Authorization: Bearer <token>` injection for all requests.
+   - Handled session expiration (automatic redirect on 401 with session cleanup).
+
+2. **React Data-Fetching Hook ([`frontend/src/hooks/useApi.js`](frontend/src/hooks/useApi.js)):**
+   - Created lightweight React hook returning `{ data, loading, error, refetch }` with automatic dependency watching.
+
+3. **Complete Elimination of Mock Data Across Dashboard Pages:**
+   - **Overview ([`Overview.jsx`](frontend/src/pages/Overview.jsx)):** Real scan execution KPI counters, dynamic attack activity timeline, prioritized vulnerabilities linked to MongoDB findings.
+   - **Scans ([`Scans.jsx`](frontend/src/pages/Scans.jsx)):** Real scan history table, multi-phase status badges, scan launch wizard with live target submission, live progress tracking.
+   - **Findings ([`Findings.jsx`](frontend/src/pages/Findings.jsx)):** Dynamic filtering by severity/status, CVSS scoring from database, live cURL/Python PoC and remediation snippets.
+   - **Endpoints ([`Endpoints.jsx`](frontend/src/pages/Endpoints.jsx)):** Real attack surface mapping, parameter specifications, and route status.
+   - **Agent Graph ([`AgentGraph.jsx`](frontend/src/pages/AgentGraph.jsx)):** Dynamic LangGraph topology connected to active scan state and phase progression.
+   - **Sandbox ([`Sandbox.jsx`](frontend/src/pages/Sandbox.jsx)):** Container execution telemetry and verification runs sourced from MongoDB.
+   - **Reports ([`Reports.jsx`](frontend/src/pages/Reports.jsx)):** Real scan assessment reports, executive summaries, OWASP compliance mapping, and direct Markdown downloads.
+   - **Settings ([`Settings.jsx`](frontend/src/pages/Settings.jsx)):** Real authenticated user profile display and persistent client configurations.
+
+4. **Live Scan Progress & Telemetry Console Logging:**
+   - Added browser console telemetry streaming in `Overview.jsx` and `Scans.jsx` providing real-time visibility into target scanning progress, phases, tested routes, and completion events.
+
+---
+
+### [CP-013] — Attack Surface Endpoints Management & Live Route Probing
+* **Date:** 2026-10-07
+* **Milestone Target:** Comprehensive Attack Surface Route Explorer & Targeted Scanning
+* **Status:** Complete & Verified
+
+#### Deliverables & Implementation:
+1. **Discovered Endpoints Drawer ([`Scans.jsx`](frontend/src/pages/Scans.jsx)):**
+   - Added interactive "Discovered Routes" drawer on the Scans page allowing operators to inspect endpoints mapped during automated spidering.
+   - Supports search filtering by HTTP method, path, and parameter keywords.
+   - Added single-click "Probe" action with inline loading states and real-time response notifications.
+
+2. **Hierarchical Route Explorer ([`Endpoints.jsx`](frontend/src/pages/Endpoints.jsx)):**
+   - Filter by scan instance or view combined attack surface across all runs.
+   - Added Schema Drill-Down drawer displaying parameter types, authentication requirements, and risk tags.
+   - Direct "Launch Targeted Probe on Route" execution with live backend dispatching via `/api/endpoints/:id/probe`.
+
+---
+
+### [CP-014] — Comprehensive Responsive Layout & Viewport Overflow Elimination
+* **Date:** 2026-10-07
+* **Milestone Target:** Cross-Device Viewport Responsiveness & Horizontal Scroll Elimination
+* **Status:** Complete & Verified
+
+#### Deliverables & Implementation:
+1. **Fluid Responsive Grid Architecture ([`App.css`](frontend/src/App.css), [`index.css`](frontend/src/index.css)):**
+   - Replaced rigid pixel containers and fixed column widths with CSS Grid auto-fit/minmax patterns and flex layouts.
+   - Added global `.table-scroll` and horizontal overflow containment wrappers.
+   - Eliminated page horizontal scrollbars across all screen widths from 375px mobile to 4K ultra-wide displays.
+
+2. **Mobile & Tablet Adaptations Across All 8 Dashboard Pages:**
+   - **Topbar & Navigation ([`Shell.jsx`](frontend/src/components/Shell.jsx)):** Added responsive truncation, flexible capsules, and full-screen mobile slide-in drawer.
+   - **Scans & Overview:** Responsive metric strip with wrapping cards, dynamic table compression, and full-width mobile modals.
+   - **Findings & Endpoints:** Replaced hardcoded drawer widths with responsive clamp widths (`min(560px, 100vw)`).
+   - **Agent Graph & Sandbox:** Fluid agent topology card rail and responsive terminal window with auto-wrapping logs.
+
+---
+
+### [CP-015] — Multi-Tenant User Data Isolation & Cross-Account Target Privacy
+* **Date:** 2026-10-07
+* **Milestone Target:** Strict User Data Isolation & Target Leakage Prevention
+* **Status:** Complete & Verified with 30/30 Passing Tests
+
+#### Deliverables & Implementation:
+1. **Backend Route & Controller Multi-Tenant Scoping:**
+   - Attached `protect` JWT middleware to all operational routes: [`scanRoutes.js`](backend/src/routes/scanRoutes.js), [`findingRoutes.js`](backend/src/routes/findingRoutes.js), [`endpointRoutes.js`](backend/src/routes/endpointRoutes.js), and [`sandboxRoutes.js`](backend/src/routes/sandboxRoutes.js).
+   - Scoped [`scanController.js`](backend/src/controllers/scanController.js) queries to authenticated `operatorId: { $in: [userId, String(userId)] }`.
+   - Prevented cross-user scan modifications: users cannot pause, abort, or download reports of another operator's scan (returns 404).
+   - Scoped findings, endpoints, and sandbox queries strictly to scans owned by the requesting operator via `getUserScanIds`.
+   - Hardened fallback handlers: unauthenticated requests evaluate to empty sets (`__UNAUTHORIZED_OPERATOR__`), preventing unscoped database-wide queries.
+
+2. **Cross-Account Active Target Leakage Fix (`TARGET jaycodes.space`):**
+   - **Root Cause Identified:** Client topbar cached the active scan target in an unscoped browser key `localStorage.getItem('ronin_active_target')`, causing another operator's dashboard to display `TARGET jaycodes.space ACTIVE` on initial mount.
+   - **User-Scoped Caching ([`Shell.jsx`](frontend/src/components/Shell.jsx)):** Scoped storage key to user identity (`ronin_active_target_${userKey}`) and purged legacy shared keys on mount.
+   - **Session Switch Purge ([`App.jsx`](frontend/src/App.jsx), [`Auth.jsx`](frontend/src/pages/Auth.jsx)):** User sign-out and login wipe all target cache keys from `localStorage`.
+   - **API Client Null Handling ([`api.js`](frontend/src/services/api.js)):** Fixed `body.data !== undefined ? body.data : body` so `{ success: true, data: null }` correctly evaluates to `null` instead of a truthy object.
+   - **Running Status Restriction:** Updated `getActiveScan` to only return scans with status `['running', 'paused', 'pending']`, cleanly showing `STANDBY (IDLE)` when no scan is active.
+
+3. **Automated Verification & Test Suite:**
+   - Created [`backend/tests/isolation.test.js`](backend/tests/isolation.test.js) covering unauthenticated rejections, scan creation/listing isolation, report privacy, status manipulation defense, findings/endpoints/sandbox data scoping, and active scan owner isolation.
+   - **Test Results:** **30/30 tests passed** (6 isolation tests + 24 authentication tests).
+   - **Frontend Build:** Built cleanly with Vite in 454ms with 0 errors.
+
+---
+
 ## 🚀 Next Session Roadmap
 
-### AI Engine & Telemetry
-- [ ] **Phase 6** — Wire scanner events (`RONIN_EVENT`) from runner process to Node.js backend SSE stream (`/api/scans/:id/stream`)
-- [ ] Connect SSE stream to React dashboard `AgentGraph.jsx` for live graph node glow and real-time log output
+### AI Engine & Real-Time Telemetry
+- [ ] **Phase 6** — Implement Server-Sent Events (SSE) or WebSockets stream on `/api/scans/:id/stream` for live token generation and agent turn updates
+- [ ] Connect SSE stream directly to `AgentGraph.jsx` for real-time node animation and execution stream
+- [ ] Add Docker sandbox container lifecycle integration with active execution monitoring
 
-### Dashboard Data Bridge
-- [ ] Create `frontend/src/services/api.js` and custom hooks (`useScans`, `useFindings`, `useEndpoints`, `useSandbox`)
-- [ ] Replace mock imports in dashboard pages (`Overview.jsx`, `Scans.jsx`, `Findings.jsx`) with live DB backend data
+### Production Hardening & CI/CD
+- [ ] Configure Docker compose environment orchestrating MongoDB, Express Backend, and React Frontend
+- [ ] Add automated end-to-end integration test runner in GitHub Actions workflow
+
 
 
 

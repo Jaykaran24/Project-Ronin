@@ -121,6 +121,12 @@ export default function AuthPage({ onAuth }) {
           setNotice(null)
         }, 800)
       } else {
+        localStorage.removeItem('ronin_active_target')
+        try {
+          Object.keys(localStorage).forEach(k => {
+            if (k.startsWith('ronin_active_target')) localStorage.removeItem(k)
+          })
+        } catch {}
         localStorage.setItem('roninToken', data.token)
         localStorage.setItem('roninUser', JSON.stringify(data.user))
         if (remember) localStorage.setItem('roninRemembered', form.email)

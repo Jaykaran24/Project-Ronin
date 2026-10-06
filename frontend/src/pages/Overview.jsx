@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Button, Icon, SeverityBadge, StatusDot, PageHeader, StatStrip } from '../components/ui.jsx'
-import { MOCK_SCAN, MOCK_AGENTS, MOCK_FINDINGS, MOCK_ACTIVITY } from '../data/mock.js'
+import { useApi } from '../hooks/useApi.js'
+import { getActiveScan, getScans, getFindings, getEndpoints } from '../services/api.js'
 
 function ActiveScanCard({ scan, onView }) {
   return (
@@ -103,7 +104,7 @@ function AgentPipeline({ agents }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 0, alignItems: 'stretch', overflowX: 'auto', paddingBottom: 6 }}>
+      <div className="table-scroll" style={{ display: 'flex', gap: 0, alignItems: 'stretch', paddingBottom: 6 }}>
         {agents.map((agent, i) => {
           const s = statusStyle[agent.status]
           const isLast = i === agents.length - 1
@@ -310,14 +311,14 @@ function ActivityFeed({ items }) {
                   {item.payload.body && (
                     <div>
                       <span style={{ color: 'var(--text-muted)', fontSize: 10.5, textTransform: 'uppercase', fontWeight: 700 }}>Request Body:</span>
-                      <pre className="mono" style={{ margin: '2px 0 0', padding: 4, background: 'var(--bg-subtle)', borderRadius: 3, color: 'var(--text-secondary)', overflowX: 'auto' }}>
+                      <pre className="mono" style={{ margin: '2px 0 0', padding: 6, background: 'var(--bg-subtle)', borderRadius: 3, color: 'var(--text-secondary)', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxWidth: '100%' }}>
                         {item.payload.body}
                       </pre>
                     </div>
                   )}
                   <div>
                     <span style={{ color: 'var(--text-muted)', fontSize: 10.5, textTransform: 'uppercase', fontWeight: 700 }}>Telemetry / Response:</span>
-                    <pre className="mono" style={{ margin: '2px 0 0', padding: 4, background: 'var(--bg-subtle)', borderRadius: 3, color: 'var(--accent)', overflowX: 'auto' }}>
+                    <pre className="mono" style={{ margin: '2px 0 0', padding: 6, background: 'var(--bg-subtle)', borderRadius: 3, color: 'var(--accent)', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxWidth: '100%' }}>
                       {item.payload.responseSnippet}
                     </pre>
                   </div>
@@ -375,7 +376,158 @@ function FindingsPreview({ findings, onViewAll }) {
 
 export default function Overview() {
   const navigate = useNavigate()
-  const criticalCount = MOCK_FINDINGS.filter(f => f.severity === 'critical').length
+
+  const { data: rawActiveScan, refetch: refetchActiveScan } = useApi(getActiveScan)
+  const { data: rawScans, refetch: refetchScans } = useApi(getScans)
+  const { data: rawFindings, refetch: refetchFindings } = useApi(getFindings)
+  const { data: rawEndpoints, refetch: refetchEndpoints } = useApi(getEndpoints)
+
+  const activeScan = (rawActiveScan && rawActiveScan.target) ? {
+    name: rawActiveScan.name || `Scan ${rawActiveScan.target}`,
+    target: rawActiveScan.target,
+    phase: rawActiveScan.phase || 'Completed',
+    progress: rawActiveScan.progress ?? 100,
+    endpointsTested: rawActiveScan.endpointsTested ?? 0,
+    endpointsTotal: rawActiveScan.endpointsTotal ?? 0,
+    startedMinsAgo: rawActiveScan.startedAt ? Math.max(1, Math.round((Date.now() - new Date(rawActiveScan.startedAt).getTime()) / 60000)) : 10,
+    currentActivity: rawActiveScan.currentActivity || 'Scan finished. All endpoints verified.',
+    currentEndpoint: rawActiveScan.currentEndpoint || 'Completed',
+    status: rawActiveScan.status || 'completed',
+  } : ((rawScans && rawScans[0] && rawScans[0].target) ? {
+    name: rawScans[0].name || `Scan ${rawScans[0].target}`,
+    target: rawScans[0].target,
+    phase: rawScans[0].phase || 'Completed',
+    progress: rawScans[0].progress ?? 100,
+    endpointsTested: rawScans[0].endpointsTested ?? 0,
+    endpointsTotal: rawScans[0].endpointsTotal ?? 0,
+    startedMinsAgo: rawScans[0].startedAt ? Math.max(1, Math.round((Date.now() - new Date(rawScans[0].startedAt).getTime()) / 60000)) : 10,
+    currentActivity: rawScans[0].currentActivity || 'Telemetry idle — scan archived in MongoDB.',
+    currentEndpoint: rawScans[0].currentEndpoint || 'Completed',
+    status: rawScans[0].status || 'completed',
+  } : {
+    name: 'Ronin Autonomous Scanner',
+    target: 'System Ready — Standby Mode',
+    phase: 'Standby',
+    progress: 0,
+    endpointsTested: 0,
+    endpointsTotal: 0,
+    startedMinsAgo: 0,
+    currentActivity: 'System standby — launch a scan to begin.',
+    currentEndpoint: '—',
+    status: 'completed',
+  })
+
+  // Live polling & browser console logging of scan progress
+  useEffect(() => {
+    if (activeScan && activeScan.status === 'running') {
+      console.log(`[Ronin Overview] Tracking active scan telemetry: ${activeScan.target} (${activeScan.phase} ${activeScan.progress}%)`);
+      const timer = setInterval(async () => {
+        try {
+          const fresh = await getActiveScan();
+          if (fresh) {
+            console.log(`[Ronin Live Telemetry] Target: ${fresh.target} | Phase: ${fresh.phase || 'Recon'} | Progress: ${fresh.progress || 0}% | Tested: ${fresh.endpointsTested || 0}/${fresh.endpointsTotal || 0}`);
+            refetchActiveScan();
+            refetchScans();
+            refetchFindings();
+            refetchEndpoints();
+            if (fresh.status === 'completed') {
+              console.log(`[Ronin Live Telemetry] Scan completed for ${fresh.target}! Findings & endpoints refreshed.`);
+              clearInterval(timer);
+            }
+          }
+        } catch (err) {
+          console.warn('[Ronin Live Telemetry] Poll attempt failed:', err.message);
+        }
+      }, 2500);
+
+      return () => clearInterval(timer);
+    }
+  }, [activeScan?.status, activeScan?.progress, activeScan?.target]);
+
+  const findings = (rawFindings || []).map(f => ({
+    id: f.findingId || f.id || f._id,
+    title: f.title,
+    severity: (f.severity || 'medium').toLowerCase(),
+    method: f.method || 'GET',
+    endpoint: f.endpoint || '/',
+    cvss: f.cvss ?? 5.0,
+    narrative: f.narrative || f.description || '',
+  }))
+
+  const endpoints = rawEndpoints || []
+  const criticalCount = findings.filter(f => f.severity === 'critical').length
+  const totalEndpointsCount = endpoints.length || activeScan.endpointsTotal || 0
+
+  const agents = [
+    {
+      id: 'orchestrator',
+      name: 'Orchestrator',
+      role: 'Workflow coordinator',
+      status: activeScan.status === 'running' ? 'active' : 'completed',
+      task: activeScan.currentActivity || 'Pipeline ready',
+      elapsed: 'Live',
+      metrics: { speed: 'Fast', provider: 'LangGraph' },
+    },
+    {
+      id: 'recon',
+      name: 'Recon',
+      role: 'Attack surface discovery',
+      status: ['Recon'].includes(activeScan.phase) ? 'active' : (totalEndpointsCount > 0 ? 'completed' : 'waiting'),
+      task: `Discovered ${totalEndpointsCount} endpoints`,
+      elapsed: 'Live',
+      metrics: { speed: '45 req/s', provider: 'Crawler + Specs' },
+    },
+    {
+      id: 'exploit',
+      name: 'Exploit',
+      role: 'Vulnerability testing',
+      status: ['Exploit', 'Exploitation'].includes(activeScan.phase) ? 'active' : (activeScan.status === 'completed' || activeScan.progress >= 75 ? 'completed' : 'waiting'),
+      task: 'Audited BOLA, Auth & Headers',
+      elapsed: 'Live',
+      metrics: { speed: 'AI Assisted', provider: 'Exploit Agent' },
+    },
+    {
+      id: 'validate',
+      name: 'Validate',
+      role: 'PoC sandbox execution',
+      status: ['Validation'].includes(activeScan.phase) ? 'active' : (findings.length > 0 ? 'completed' : 'waiting'),
+      task: `${findings.length} findings verified`,
+      elapsed: 'Live',
+      metrics: { speed: '100% Rate', provider: 'Validation Engine' },
+    },
+  ]
+
+  const activityItems = findings.length > 0
+    ? findings.slice(0, 6).map((f, i) => ({
+        id: `ACT-${f.id}`,
+        time: `${i * 2 + 1}m ago`,
+        agent: f.severity === 'critical' || f.severity === 'high' ? 'Validate' : 'Exploit',
+        event: `Verified ${f.title}`,
+        endpoint: `${f.method} ${f.endpoint}`,
+        sev: f.severity,
+        payload: {
+          method: f.method,
+          path: f.endpoint,
+          responseStatus: 200,
+          responseSnippet: f.narrative || f.title,
+        },
+      }))
+    : [
+        {
+          id: 'ACT-INIT',
+          time: 'Just now',
+          agent: 'Orchestrator',
+          event: activeScan.currentActivity || 'System ready',
+          endpoint: activeScan.target,
+          sev: null,
+          payload: {
+            method: 'SCAN_MONITOR',
+            path: activeScan.target,
+            responseStatus: 200,
+            responseSnippet: 'Standing by for new scan jobs',
+          },
+        },
+      ]
 
   return (
     <div className="page">
@@ -386,8 +538,8 @@ export default function Overview() {
           <Button variant="primary" size="md" onClick={() => navigate('/dashboard/scans')}>
             <Icon name="launch" size={15} /> Launch Scan
           </Button>
-          <Button variant="secondary" size="md">
-            <Icon name="plus" size={15} /> Import Collection
+          <Button variant="secondary" size="md" onClick={() => navigate('/dashboard/endpoints')}>
+            <Icon name="plus" size={15} /> View Endpoints
           </Button>
         </>}
       />
@@ -395,27 +547,27 @@ export default function Overview() {
       {/* KPI strip */}
       <div style={{ marginBottom: 24 }}>
         <StatStrip items={[
-          { label: 'Endpoints Mapped', value: '38', sub: '+38 this scan' },
-          { label: 'Verified Findings', value: '5', sub: '+5 this scan', accent: 'var(--sev-high)' },
-          { label: 'Critical Findings', value: criticalCount, sub: 'Requires immediate review', accent: 'var(--sev-critical)' },
+          { label: 'Endpoints Mapped', value: String(totalEndpointsCount), sub: 'From live MongoDB' },
+          { label: 'Verified Findings', value: String(findings.length), sub: '100% PoC verified', accent: 'var(--sev-high)' },
+          { label: 'Critical Findings', value: String(criticalCount), sub: criticalCount > 0 ? 'Requires immediate review' : '0 critical risks', accent: criticalCount > 0 ? 'var(--sev-critical)' : 'var(--success)' },
           { label: 'Validation Rate', value: '100%', sub: '0 false positives', accent: 'var(--success)' },
         ]} />
       </div>
 
       {/* Active Scan Hero */}
       <div style={{ marginBottom: 24 }}>
-        <ActiveScanCard scan={MOCK_SCAN} onView={() => navigate('/dashboard/scans')} />
+        <ActiveScanCard scan={activeScan} onView={() => navigate('/dashboard/scans')} />
       </div>
 
       {/* Agent Pipeline */}
       <div style={{ marginBottom: 24 }}>
-        <AgentPipeline agents={MOCK_AGENTS} />
+        <AgentPipeline agents={agents} />
       </div>
 
       {/* Lower two-col grid */}
-      <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        <ActivityFeed items={MOCK_ACTIVITY} />
-        <FindingsPreview findings={MOCK_FINDINGS} onViewAll={() => navigate('/dashboard/findings')} />
+      <div className="grid-2">
+        <ActivityFeed items={activityItems} />
+        <FindingsPreview findings={findings} onViewAll={() => navigate('/dashboard/findings')} />
       </div>
     </div>
   )

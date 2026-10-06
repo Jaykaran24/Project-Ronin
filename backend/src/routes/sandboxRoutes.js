@@ -6,9 +6,13 @@
 
 const express = require('express');
 const router = express.Router();
+const { protect } = require('../middleware/auth');
 const { getSandboxRuns, getSandboxRunById } = require('../controllers/sandboxController');
 
-// GET /api/sandbox — list container execution history
+// All sandbox routes require authenticated user session
+router.use(protect);
+
+// GET /api/sandbox — list user's container execution history
 router.get('/', getSandboxRuns);
 
 // GET /api/sandbox/:id — get raw stdout/stderr logs
